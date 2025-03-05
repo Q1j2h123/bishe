@@ -1,0 +1,12 @@
+-------------------------------------------------------------------------------
+Test set: com.oj.controller.UserControllerTest
+-------------------------------------------------------------------------------
+Tests run: 2, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 5.08 s <<< FAILURE! - in com.oj.controller.UserControllerTest
+testUserRegister  Time elapsed: 0.516 s  <<< FAILURE!
+java.lang.AssertionError: Status expected:<200> but was:<404>
+	at com.oj.controller.UserControllerTest.testUserRegister(UserControllerTest.java:38)
+
+testUserLogin  Time elapsed: 0.02 s  <<< FAILURE!
+java.lang.AssertionError: Status expected:<200> but was:<404>
+	at com.oj.controller.UserControllerTest.testUserLogin(UserControllerTest.java:51)
+

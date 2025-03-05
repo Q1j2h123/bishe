@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.oj.mapper.ProblemMapper">
+
+    <!-- 复杂条件查询 -->
+    <select id="searchProblems" resultType="com.oj.model.entity.Problem">
+        SELECT *
+        FROM problem p
+        <where>
+            <if test="title != null and title != ''">
+                AND p.title LIKE CONCAT('%', #{title}, '%')
+            </if>
+            <if test="content != null and content != ''">
+                AND p.content LIKE CONCAT('%', #{content}, '%')
+            </if>
+            <if test="type != null and type != ''">
+                AND p.type = #{type}
+            </if>
+            <if test="jobType != null and jobType != ''">
+                AND p.jobType = #{jobType}
+            </if>
+            <if test="difficulty != null and difficulty != ''">
+                AND p.difficulty = #{difficulty}
+            </if>
+            <if test="tags != null and tags != ''">
+                AND p.tags LIKE CONCAT('%', #{tags}, '%')
+            </if>
+            AND p.isDelete = 0
+        </where>
+        <if test="sortField != null and sortField != ''">
+            ORDER BY ${sortField} ${sortOrder}
+        </if>
+    </select>
+
+    <!-- 获取题目详情（包含具体类型的信息） -->
+    <select id="getProblemDetail" resultMap="problemDetailMap">
+        SELECT 
+            p.*,
+            cp.options as choice_options,
+            cp.answer as choice_answer,
+            cp.analysis as choice_analysis,
+            jp.answer as judge_answer,
+            jp.analysis as judge_analysis,
+            pp.testCases,
+            pp.sampleInput,
+            pp.sampleOutput,
+            pp.timeLimit,
+            pp.memoryLimit,
+            pp.templateCode
+        FROM problem p
+        LEFT JOIN choice_problem cp ON p.id = cp.id AND p.type = 'CHOICE'
+        LEFT JOIN judge_problem jp ON p.id = jp.id AND p.type = 'JUDGE'
+        LEFT JOIN programming_problem pp ON p.id = pp.id AND p.type = 'PROGRAM'
+        WHERE p.id = #{id} AND p.isDelete = 0
+    </select>
+
+    <!-- 结果映射 -->
+    <resultMap id="problemDetailMap" type="com.oj.model.entity.Problem">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="type" column="type"/>
+        <result property="jobType" column="jobType"/>
+        <result property="tags" column="tags"/>
+        <result property="difficulty" column="difficulty"/>
+        <result property="acceptRate" column="acceptRate"/>
+        <result property="submissionCount" column="submissionCount"/>
+        <result property="createTime" column="createTime"/>
+        <result property="updateTime" column="updateTime"/>
+        <result property="isDelete" column="isDelete"/>
+        
+        <!-- 选择题信息 -->
+        <association property="choiceProblem" javaType="com.oj.model.entity.ChoiceProblem">
+            <result property="options" column="choice_options"/>
+            <result property="answer" column="choice_answer"/>
+            <result property="analysis" column="choice_analysis"/>
+        </association>
+        
+        <!-- 判断题信息 -->
+        <association property="judgeProblem" javaType="com.oj.model.entity.JudgeProblem">
+            <result property="answer" column="judge_answer"/>
+            <result property="analysis" column="judge_analysis"/>
+        </association>
+        
+        <!-- 编程题信息 -->
+        <association property="programmingProblem" javaType="com.oj.model.entity.ProgrammingProblem">
+            <result property="testCases" column="testCases"/>
+            <result property="sampleInput" column="sampleInput"/>
+            <result property="sampleOutput" column="sampleOutput"/>
+            <result property="timeLimit" column="timeLimit"/>
+            <result property="memoryLimit" column="memoryLimit"/>
+            <result property="templateCode" column="templateCode"/>
+        </association>
+    </resultMap>
+</mapper> 

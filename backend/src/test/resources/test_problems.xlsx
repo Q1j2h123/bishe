@@ -1,0 +1,4 @@
+题目名称,题目内容,答案,题目类型,难度,标签,职业类型
+Java基础题1,请解释Java中的多态概念,多态是指同一个行为具有多个不同表现形式或形态的能力。在Java中，多态主要通过继承和接口实现。父类引用指向子类对象，调用子类重写的方法。,单选题,EASY,Java基础,后端开发
+算法题1,给定一个整数数组 nums 和一个目标值 target，请你在该数组中找出和为目标值的那两个整数，并返回他们的数组下标。,可以使用哈希表来优化时间复杂度，将遍历过的数字存入哈希表，查找时直接查找哈希表即可。,编程题,MEDIUM,算法,后端开发
+SQL题1,查询每个部门的平均工资，并按照平均工资降序排列。,SELECT department_id, AVG(salary) as avg_salary FROM employees GROUP BY department_id ORDER BY avg_salary DESC;,SQL题,MEDIUM,数据库,后端开发 
