@@ -1,0 +1,171 @@
+[33mcommit eff76cecd7ecb47a45f465585f75ce3f5f4e940b[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: Qij2h123 <1785651887@qq.com>
+Date:   Wed Mar 5 12:16:56 2025 +0800
+
+    添加项目README文档
+
+ fronted/README.md | 114 [32m++++++++++++++++++++++++++++++++++++++++++++[m[31m----------[m
+ 1 file changed, 94 insertions(+), 20 deletions(-)
+
+[33mcommit 56d036d24a91e41479c89752ed9335076d9f2d03[m
+Author: Qij2h123 <1785651887@qq.com>
+Date:   Wed Mar 5 12:14:46 2025 +0800
+
+    初始化项目：添加前后端基础代码
+
+ .vscode/settings.json                              |    3 [32m+[m
+ backend/.idea/.gitignore                           |    8 [32m+[m
+ backend/.idea/MarsCodeWorkspaceAppSettings.xml     |    7 [32m+[m
+ backend/.idea/compiler.xml                         |   19 [32m+[m
+ backend/.idea/dataSources.xml                      |   12 [32m+[m
+ backend/.idea/encodings.xml                        |    6 [32m+[m
+ backend/.idea/jarRepositories.xml                  |   25 [32m+[m
+ backend/.idea/misc.xml                             |   11 [32m+[m
+ backend/.idea/vcs.xml                              |    6 [32m+[m
+ backend/.vscode/settings.json                      |    3 [32m+[m
+ backend/pom.xml                                    |  149 [32m++[m
+ backend/src/main/java/com/oj/OjApplication.java    |   13 [32m+[m
+ .../src/main/java/com/oj/common/BaseResponse.java  |   52 [32m+[m
+ .../main/java/com/oj/common/BusinessException.java |   23 [32m+[m
+ backend/src/main/java/com/oj/common/ErrorCode.java |   38 [32m+[m
+ .../java/com/oj/common/GlobalExceptionHandler.java |   22 [32m+[m
+ .../src/main/java/com/oj/common/ResultUtils.java   |   60 [32m+[m
+ .../src/main/java/com/oj/common/UserContext.java   |   22 [32m+[m
+ .../src/main/java/com/oj/config/CorsConfig.java    |   19 [32m+[m
+ .../src/main/java/com/oj/config/Knife4jConfig.java |    1 [32m+[m
+ .../main/java/com/oj/config/MyBatisPlusConfig.java |   22 [32m+[m
+ .../main/java/com/oj/config/SecurityConfig.java    |   24 [32m+[m
+ backend/src/main/java/com/oj/config/WebConfig.java |   30 [32m+[m
+ .../src/main/java/com/oj/config/WebMvcConfig.java  |   49 [32m+[m
+ .../java/com/oj/controller/ProblemController.java  |  137 [32m++[m
+ .../com/oj/controller/QuestionBankController.java  |  151 [32m++[m
+ .../controller/QuestionBankProblemController.java  |  133 [32m++[m
+ .../com/oj/controller/SubmissionController.java    |   81 [32m+[m
+ .../java/com/oj/controller/UserController.java     |   68 [32m+[m
+ .../java/com/oj/exception/BusinessException.java   |   30 [32m+[m
+ .../java/com/oj/interceptor/LoginInterceptor.java  |   94 [32m+[m
+ .../com/oj/listener/ProblemImportListener.java     |   65 [32m+[m
+ .../com/oj/mapper/ChoiceJudgeSubmissionMapper.java |   33 [32m+[m
+ .../java/com/oj/mapper/ChoiceProblemMapper.java    |   12 [32m+[m
+ .../java/com/oj/mapper/JudgeProblemMapper.java     |   12 [32m+[m
+ .../src/main/java/com/oj/mapper/ProblemMapper.java |   31 [32m+[m
+ .../com/oj/mapper/ProgrammingProblemMapper.java    |   12 [32m+[m
+ .../com/oj/mapper/ProgrammingSubmissionMapper.java |   33 [32m+[m
+ .../java/com/oj/mapper/QuestionBankMapper.java     |   12 [32m+[m
+ .../com/oj/mapper/QuestionBankProblemMapper.java   |   12 [32m+[m
+ .../src/main/java/com/oj/mapper/UserMapper.java    |    9 [32m+[m
+ .../main/java/com/oj/model/dto/DeleteRequest.java  |   16 [32m+[m
+ .../java/com/oj/model/dto/ProblemAddRequest.java   |   56 [32m+[m
+ .../java/com/oj/model/dto/ProblemExcelDTO.java     |   55 [32m+[m
+ .../java/com/oj/model/dto/ProblemQueryRequest.java |   56 [32m+[m
+ .../com/oj/model/dto/ProblemUpdateRequest.java     |   61 [32m+[m
+ .../com/oj/model/dto/QuestionBankAddRequest.java   |   59 [32m+[m
+ .../com/oj/model/dto/QuestionBankQueryRequest.java |   68 [32m+[m
+ .../java/com/oj/model/dto/SubmissionRequest.java   |   25 [32m+[m
+ .../java/com/oj/model/dto/UserLoginRequest.java    |   14 [32m+[m
+ .../java/com/oj/model/dto/UserRegisterRequest.java |   20 [32m+[m
+ .../com/oj/model/entity/ChoiceJudgeSubmission.java |   14 [32m+[m
+ .../java/com/oj/model/entity/ChoiceProblem.java    |   11 [32m+[m
+ .../java/com/oj/model/entity/JudgeProblem.java     |   10 [32m+[m
+ .../src/main/java/com/oj/model/entity/Problem.java |   61 [32m+[m
+ .../com/oj/model/entity/ProgrammingProblem.java    |   14 [32m+[m
+ .../com/oj/model/entity/ProgrammingSubmission.java |   17 [32m+[m
+ .../java/com/oj/model/entity/QuestionBank.java     |   90 [32m+[m
+ .../com/oj/model/entity/QuestionBankProblem.java   |   55 [32m+[m
+ .../main/java/com/oj/model/entity/Submission.java  |   46 [32m+[m
+ .../src/main/java/com/oj/model/entity/User.java    |   67 [32m+[m
+ .../main/java/com/oj/model/enums/JobTypeEnum.java  |   39 [32m+[m
+ .../java/com/oj/model/enums/ProblemTypeEnum.java   |   39 [32m+[m
+ .../oj/model/enums/QuestionBankCategoryEnum.java   |   38 [32m+[m
+ .../com/oj/model/enums/QuestionBankLevelEnum.java  |   38 [32m+[m
+ .../oj/model/enums/QuestionBankPermissionEnum.java |   38 [32m+[m
+ .../com/oj/model/request/UserLoginRequest.java     |   15 [32m+[m
+ .../com/oj/model/request/UserRegisterRequest.java  |   21 [32m+[m
+ .../src/main/java/com/oj/model/vo/UserLoginVO.java |    1 [32m+[m
+ backend/src/main/java/com/oj/model/vo/UserVO.java  |   13 [32m+[m
+ .../oj/service/ChoiceJudgeSubmissionService.java   |   32 [32m+[m
+ .../main/java/com/oj/service/ProblemService.java   |  140 [32m++[m
+ .../oj/service/ProgrammingSubmissionService.java   |   32 [32m+[m
+ .../com/oj/service/QuestionBankProblemService.java |   56 [32m+[m
+ .../java/com/oj/service/QuestionBankService.java   |   70 [32m+[m
+ .../src/main/java/com/oj/service/UserService.java  |   43 [32m+[m
+ .../impl/ChoiceJudgeSubmissionServiceImpl.java     |   84 [32m+[m
+ .../com/oj/service/impl/ProblemServiceImpl.java    |  499 [32m+++++[m
+ .../impl/ProgrammingSubmissionServiceImpl.java     |   69 [32m+[m
+ .../impl/QuestionBankProblemServiceImpl.java       |  101 [32m++[m
+ .../oj/service/impl/QuestionBankServiceImpl.java   |  167 [32m++[m
+ .../java/com/oj/service/impl/UserServiceImpl.java  |  109 [32m++[m
+ backend/src/main/java/com/oj/utils/JwtUtils.java   |   61 [32m+[m
+ .../src/main/java/com/oj/utils/PasswordUtils.java  |   17 [32m+[m
+ backend/src/main/resources/application.properties  |   41 [32m+[m
+ backend/src/main/resources/db/problem.sql          |  118 [32m++[m
+ backend/src/main/resources/db/user.sql             |   16 [32m+[m
+ .../src/main/resources/mapper/ProblemMapper.xml    |   95 [32m+[m
+ .../java/com/oj/controller/UserControllerTest.java |   55 [32m+[m
+ .../java/com/oj/service/ProblemServiceTest.java    |  126 [32m++[m
+ backend/src/test/resources/test_problems.xlsx      |    4 [32m+[m
+ backend/target/classes/application.properties      |   41 [32m+[m
+ backend/target/classes/com/oj/OjApplication.class  |  Bin [31m0[m -> [32m788[m bytes
+ .../classes/com/oj/common/BaseResponse.class       |  Bin [31m0[m -> [32m4475[m bytes
+ .../classes/com/oj/common/BusinessException.class  |  Bin [31m0[m -> [32m1045[m bytes
+ .../target/classes/com/oj/common/ErrorCode.class   |  Bin [31m0[m -> [32m2012[m bytes
+ .../com/oj/common/GlobalExceptionHandler.class     |  Bin [31m0[m -> [32m2085[m bytes
+ .../target/classes/com/oj/common/ResultUtils.class |  Bin [31m0[m -> [32m1601[m bytes
+ .../target/classes/com/oj/common/UserContext.class |  Bin [31m0[m -> [32m988[m bytes
+ .../target/classes/com/oj/config/CorsConfig.class  |  Bin [31m0[m -> [32m1631[m bytes
+ .../classes/com/oj/config/MyBatisPlusConfig.class  |  Bin [31m0[m -> [32m1105[m bytes
+ .../classes/com/oj/config/SecurityConfig.class     |  Bin [31m0[m -> [32m2681[m bytes
+ .../target/classes/com/oj/config/WebConfig.class   |  Bin [31m0[m -> [32m1570[m bytes
+ .../classes/com/oj/config/WebMvcConfig.class       |  Bin [31m0[m -> [32m3317[m bytes
+ .../com/oj/controller/ProblemController.class      |  Bin [31m0[m -> [32m7857[m bytes
+ .../com/oj/controller/QuestionBankController.class |  Bin [31m0[m -> [32m6444[m bytes
+ .../controller/QuestionBankProblemController.class |  Bin [31m0[m -> [32m4170[m bytes
+ .../com/oj/controller/SubmissionController.class   |  Bin [31m0[m -> [32m4620[m bytes
+ .../classes/com/oj/controller/UserController.class |  Bin [31m0[m -> [32m3885[m bytes
+ .../com/oj/exception/BusinessException.class       |  Bin [31m0[m -> [32m988[m bytes
+ .../com/oj/interceptor/LoginInterceptor.class      |  Bin [31m0[m -> [32m3979[m bytes
+ .../com/oj/listener/ProblemImportListener.class    |  Bin [31m0[m -> [32m3483[m bytes
+ .../oj/mapper/ChoiceJudgeSubmissionMapper.class    |  Bin [31m0[m -> [32m1376[m bytes
+ .../com/oj/mapper/ChoiceProblemMapper.class        |  Bin [31m0[m -> [32m396[m bytes
+ .../classes/com/oj/mapper/JudgeProblemMapper.class |  Bin [31m0[m -> [32m393[m bytes
+ .../classes/com/oj/mapper/ProblemMapper.class      |  Bin [31m0[m -> [32m1200[m bytes
+ .../com/oj/mapper/ProgrammingProblemMapper.class   |  Bin [31m0[m -> [32m411[m bytes
+ .../oj/mapper/ProgrammingSubmissionMapper.class    |  Bin [31m0[m -> [32m1379[m bytes
+ .../classes/com/oj/mapper/QuestionBankMapper.class |  Bin [31m0[m -> [32m393[m bytes
+ .../com/oj/mapper/QuestionBankProblemMapper.class  |  Bin [31m0[m -> [32m414[m bytes
+ .../target/classes/com/oj/mapper/UserMapper.class  |  Bin [31m0[m -> [32m369[m bytes
+ .../classes/com/oj/model/dto/DeleteRequest.class   |  Bin [31m0[m -> [32m1567[m bytes
+ .../com/oj/model/dto/ProblemAddRequest.class       |  Bin [31m0[m -> [32m5424[m bytes
+ .../classes/com/oj/model/dto/ProblemExcelDTO.class |  Bin [31m0[m -> [32m8653[m bytes
+ .../com/oj/model/dto/ProblemQueryRequest.class     |  Bin [31m0[m -> [32m5325[m bytes
+ .../com/oj/model/dto/ProblemUpdateRequest.class    |  Bin [31m0[m -> [32m5800[m bytes
+ .../com/oj/model/dto/QuestionBankAddRequest.class  |  Bin [31m0[m -> [32m5704[m bytes
+ .../oj/model/dto/QuestionBankQueryRequest.class    |  Bin [31m0[m -> [32m6316[m bytes
+ .../com/oj/model/dto/SubmissionRequest.class       |  Bin [31m0[m -> [32m3422[m bytes
+ .../com/oj/model/dto/UserLoginRequest.class        |  Bin [31m0[m -> [32m2362[m bytes
+ .../com/oj/model/dto/UserRegisterRequest.class     |  Bin [31m0[m -> [32m3453[m bytes
+ .../oj/model/entity/ChoiceJudgeSubmission.class    |  Bin [31m0[m -> [32m4223[m bytes
+ .../com/oj/model/entity/ChoiceProblem.class        |  Bin [31m0[m -> [32m3062[m bytes
+ .../classes/com/oj/model/entity/JudgeProblem.class |  Bin [31m0[m -> [32m2671[m bytes
+ .../classes/com/oj/model/entity/Problem.class      |  Bin [31m0[m -> [32m9423[m bytes
+ .../com/oj/model/entity/ProgrammingProblem.class   |  Bin [31m0[m -> [32m4717[m bytes
+ .../oj/model/entity/ProgrammingSubmission.class    |  Bin [31m0[m -> [32m5697[m bytes
+ .../classes/com/oj/model/entity/QuestionBank.class |  Bin [31m0[m -> [32m8756[m bytes
+ .../com/oj/model/entity/QuestionBankProblem.class  |  Bin [31m0[m -> [32m4812[m bytes
+ .../classes/com/oj/model/entity/Submission.class   |  Bin [31m0[m -> [32m6738[m bytes
+ .../target/classes/com/oj/model/entity/User.class  |  Bin [31m0[m -> [32m8402[m bytes
+ .../classes/com/oj/model/enums/JobTypeEnum.class   |  Bin [31m0[m -> [32m1949[m bytes
+ .../com/oj/model/enums/ProblemTypeEnum.class       |  Bin [31m0[m -> [32m1974[m bytes
+ .../oj/model/enums/QuestionBankCategoryEnum.class  |  Bin [31m0[m -> [32m1965[m bytes
+ .../com/oj/model/enums/QuestionBankLevelEnum.class |  Bin [31m0[m -> [32m1951[m bytes
+ .../model/enums/QuestionBankPermissionEnum.class   |  Bin [31m0[m -> [32m1977[m bytes
+ .../com/oj/model/request/UserLoginRequest.class    |  Bin [31m0[m -> [32m2402[m bytes
+ .../com/oj/model/request/UserRegisterRequest.class |  Bin [31m0[m -> [32m3447[m bytes
+ .../target/classes/com/oj/model/vo/UserVO.class    |  Bin [31m0[m -> [32m4051[m bytes
+ .../oj/service/ChoiceJudgeSubmissionService.class  |  Bin [31m0[m -> [32m955[m bytes
+ .../classes/com/oj/service/ProblemService.class    |  Bin [31m0[m -> [32m2463[m bytes
+ .../oj/service/ProgrammingSubmissionService.class  |  Bin [31m0[m -> [32m955[m bytes
+ .../oj/service/QuestionBankProblemService.class    |  Bin [31m0[m -> [32m796[m bytes
+ .../com/oj/service/QuestionBankService.class       |  Bin [31m0[m -> [32m1399[m bytes
+ .../classes/com/oj/service/UserService.class       |  Bin [31m0[m -> [32m788[m bytes
+ .../impl/ChoiceJudgeS
