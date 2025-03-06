@@ -1,21 +1,29 @@
 package com.oj.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.oj.common.BusinessException;
 import com.oj.common.ErrorCode;
 import com.oj.common.UserContext;
+
+import com.oj.exception.BusinessException;
 import com.oj.mapper.UserMapper;
 import com.oj.model.entity.User;
+import com.oj.model.dto.UserDTO;
+import com.oj.model.vo.UserVO;
 import com.oj.service.UserService;
 import com.oj.utils.JwtUtils;
 import com.oj.utils.PasswordUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
@@ -105,5 +113,68 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public boolean isAdmin(HttpServletRequest request) {
         User user = getLoginUser(request);
         return user != null && "admin".equals(user.getUserRole());
+    }
+
+    @Override
+    public UserVO getUserVO(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        User user = this.getById(userId);
+        if (user == null) {
+            return null;
+        }
+        return dtoToVO(userToDTO(user));
+    }
+
+    @Override
+    public List<UserVO> getUserVOByIds(List<Long> userIds) {
+        if (CollectionUtils.isEmpty(userIds)) {
+            return new ArrayList<>();
+        }
+        return this.listByIds(userIds).stream()
+                .map(user -> dtoToVO(userToDTO(user)))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public UserDTO userToDTO(User user) {
+        if (user == null) {
+            return null;
+        }
+        UserDTO userDTO = new UserDTO();
+        BeanUtils.copyProperties(user, userDTO);
+        return userDTO;
+    }
+
+    @Override
+    public UserVO dtoToVO(UserDTO userDTO) {
+        if (userDTO == null) {
+            return null;
+        }
+        UserVO userVO = new UserVO();
+        BeanUtils.copyProperties(userDTO, userVO);
+        return userVO;
+    }
+
+    @Override
+    public boolean updateUser(UserDTO userDTO) {
+        if (userDTO == null || userDTO.getId() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User user = this.getById(userDTO.getId());
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
+        }
+        BeanUtils.copyProperties(userDTO, user, "id"); // 复制属性，排除 id
+        return this.updateById(user);
+    }
+
+    @Override
+    public boolean deleteUser(Long userId) {
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        return this.removeById(userId); // 直接调用 MyBatis-Plus 的删除方法
     }
 } 

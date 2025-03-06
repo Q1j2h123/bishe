@@ -19,9 +19,14 @@ export const userApi = {
       console.log('登录响应:', res)
       if (res.code === 0 || res.code === 200) {
         if (res.data) {
-          localStorage.setItem('token', res.data.token)
+          // 生成一个临时token（实际项目中应该由后端返回）
+          const token = btoa(JSON.stringify(res.data))
+          localStorage.setItem('token', token)
           ElMessage.success('登录成功')
-          return res.data
+          return {
+            token,
+            userInfo: res.data
+          }
         }
       }
       throw new Error(res.message || '登录失败')

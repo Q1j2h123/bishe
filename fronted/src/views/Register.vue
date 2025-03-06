@@ -77,15 +77,7 @@ const validatePass = (rule: any, value: string, callback: any) => {
   }
 }
 
-const validatePass2 = (rule: any, value: string, callback: any) => {
-  if (value === '') {
-    callback(new Error('请再次输入密码'))
-  } else if (value !== registerForm.userPassword) {
-    callback(new Error('两次输入密码不一致!'))
-  } else {
-    callback()
-  }
-}
+const validatePass2 = ({})
 
 const rules = {
   userAccount: [{ required: true, message: '请输入账号', trigger: 'blur' }],

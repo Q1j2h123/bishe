@@ -12,8 +12,13 @@ export interface LoginParams {
 }
 
 export interface LoginResponse {
-  token: string
-  userInfo: UserInfo
+  id: number
+  userAccount: string
+  userName: string
+  userAvatar: string
+  userProfile: string
+  userRole: string
+  createTime: string
 }
 
 export interface UserInfo {

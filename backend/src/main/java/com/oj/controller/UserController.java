@@ -2,27 +2,42 @@ package com.oj.controller;
 
 import com.oj.common.BaseResponse;
 import com.oj.common.ErrorCode;
+import com.oj.common.ResultUtils;
+import com.oj.exception.BusinessException;
 import com.oj.model.entity.User;
-import com.oj.model.request.UserLoginRequest;
-import com.oj.model.request.UserRegisterRequest;
 import com.oj.service.UserService;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
+import com.github.xiaoymin.knife4j.annotations.ApiSupport;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import com.oj.model.request.UserLoginRequest;
+import com.oj.model.request.UserRegisterRequest;
+import com.oj.model.vo.UserLoginVO;
+import com.oj.model.vo.UserVO;
+
+import com.oj.utils.JwtUtils;
+
+import javax.validation.Valid;
 
 @RestController
 @RequestMapping("/api/user")
-@Api(tags = "用户接口")
+@Tag(name = "用户接口", description = "用户管理相关接口")
+@ApiSupport(author = "OJ System")
 public class UserController {
 
     @Resource
     private UserService userService;
 
+    @Resource
+    private JwtUtils jwtUtils;
+
     @PostMapping("/register")
-    @ApiOperation(value = "用户注册", notes = "注册新用户")
+    @Operation(summary = "用户注册", description = "注册新用户")
+    @ApiOperationSupport(order = 1)
     public BaseResponse<Long> register(@RequestBody UserRegisterRequest registerRequest) {
         if (registerRequest == null) {
             return new BaseResponse<>(ErrorCode.PARAMS_ERROR);
@@ -39,30 +54,39 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    @ApiOperation(value = "用户登录", notes = "用户登录并返回用户信息")
-    public BaseResponse<User> login(@RequestBody UserLoginRequest loginRequest) {
+    @Operation(summary = "用户登录", description = "用户登录并返回用户信息")
+    @ApiOperationSupport(order = 2)
+    public BaseResponse<UserLoginVO> login(@RequestBody @Valid UserLoginRequest loginRequest) {
         if (loginRequest == null) {
-            return new BaseResponse<>(ErrorCode.PARAMS_ERROR);
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         String userAccount = loginRequest.getUserAccount();
         String userPassword = loginRequest.getUserPassword();
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
-            return new BaseResponse<>(ErrorCode.PARAMS_ERROR);
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         User user = userService.userLogin(userAccount, userPassword);
-        return BaseResponse.success(user);
+        // 生成token
+        String token = jwtUtils.generateToken(user.getId());
+        // 构建返回对象
+        UserLoginVO loginVO = new UserLoginVO();
+        loginVO.setUser(userService.getUserVO(user.getId()));
+        loginVO.setToken(token);
+        return ResultUtils.success(loginVO);
     }
 
     @PostMapping("/logout")
-    @ApiOperation(value = "用户注销", notes = "用户退出登录")
+    @Operation(summary = "用户注销", description = "用户退出登录")
+    @ApiOperationSupport(order = 3)
     public BaseResponse<Boolean> logout() {
         return BaseResponse.success(true);
     }
 
     @GetMapping("/current")
-    @ApiOperation(value = "获取当前登录用户", notes = "获取当前登录用户信息")
-    public BaseResponse<User> getCurrentUser() {
+    @Operation(summary = "获取当前用户", description = "获取当前登录用户信息")
+    @ApiOperationSupport(order = 4)
+    public BaseResponse<UserVO> getCurrentUser() {
         User loginUser = userService.getLoginUser(null);
-        return BaseResponse.success(loginUser);
+        return ResultUtils.success(userService.getUserVO(loginUser.getId()));
     }
 } 

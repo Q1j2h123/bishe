@@ -1,15 +1,18 @@
 package com.oj.model.request;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import javax.validation.constraints.NotBlank;
+
 @Data
-@ApiModel(description = "用户登录请求")
+@Schema(description = "用户登录请求")
 public class UserLoginRequest {
-    @ApiModelProperty(value = "用户账号", required = true)
+    @NotBlank(message = "账号不能为空")
+    @Schema(description = "用户账号")
     private String userAccount;
-    
-    @ApiModelProperty(value = "用户密码", required = true)
+
+    @NotBlank(message = "密码不能为空")
+    @Schema(description = "用户密码")
     private String userPassword;
 } 

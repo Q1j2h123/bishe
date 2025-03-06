@@ -2,8 +2,11 @@ package com.oj.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.oj.model.entity.User;
+import com.oj.model.dto.UserDTO;
+import com.oj.model.vo.UserVO;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
  * 用户服务
@@ -40,4 +43,28 @@ public interface UserService extends IService<User> {
      * @return
      */
     boolean isAdmin(HttpServletRequest request);
-} 
+
+    /**
+     * 获取用户信息
+     */
+    UserVO getUserVO(Long userId);
+
+    /**
+     * 批量获取用户信息
+     */
+    List<UserVO> getUserVOByIds(List<Long> userIds);
+
+    /**
+     * Entity 转 DTO
+     */
+    UserDTO userToDTO(User user);
+
+    /**
+     * DTO 转 VO
+     */
+    UserVO dtoToVO(UserDTO userDTO);
+
+    boolean updateUser(UserDTO userDTO);
+
+    boolean deleteUser(Long userId);
+}

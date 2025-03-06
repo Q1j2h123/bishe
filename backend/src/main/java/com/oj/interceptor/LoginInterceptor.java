@@ -1,8 +1,8 @@
 package com.oj.interceptor;
 
-import com.oj.common.BusinessException;
 import com.oj.common.ErrorCode;
 import com.oj.common.UserContext;
+import com.oj.exception.BusinessException;
 import com.oj.model.entity.User;
 import com.oj.service.UserService;
 import com.oj.utils.JwtUtils;
@@ -38,6 +38,9 @@ public class LoginInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) {
         try {
+            logger.debug("Request URI: {}", request.getRequestURI());
+            logger.debug("Request Method: {}", request.getMethod());
+
             // 获取token
             String header = request.getHeader(headerName);
             logger.debug("Received header: {}", header);
@@ -79,7 +82,8 @@ public class LoginInterceptor implements HandlerInterceptor {
             UserContext.setUser(user);
             return true;
         } catch (BusinessException e) {
-            throw e;
+            logger.error("BusinessException: {}", e.getMessage());
+            throw e; // 重新抛出业务异常
         } catch (Exception e) {
             logger.error("Authentication error", e);
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "认证过程发生错误");

@@ -33,14 +33,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { userApi } from '../api/user'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const loginFormRef = ref()
 const loading = ref(false)
@@ -62,20 +63,48 @@ const handleLogin = async () => {
     if (valid) {
       try {
         loading.value = true
+        console.log('开始登录请求...')
         const response = await userApi.login(loginForm)
-        if (response) {
+        console.log('登录响应:', response)
+        
+        if (response && response.token && response.userInfo) {
+          console.log('设置token:', response.token)
           userStore.setToken(response.token)
+          console.log('设置用户信息:', response.userInfo)
           userStore.setUserInfo(response.userInfo)
-          router.push('/home')
+          
+          console.log('准备跳转...')
+          const redirect = route.query.redirect as string
+          const targetPath = redirect || '/home'
+          console.log('目标路径:', targetPath)
+          
+          try {
+            await router.push(targetPath)
+            console.log('路由跳转成功')
+          } catch (routerError) {
+            console.error('路由跳转失败:', routerError)
+            ElMessage.error('页面跳转失败')
+          }
+        } else {
+          console.error('登录响应数据异常:', response)
+          ElMessage.error('登录失败，服务器响应异常')
         }
       } catch (error) {
         console.error('登录失败:', error)
+        ElMessage.error('登录失败，请检查账号密码')
       } finally {
         loading.value = false
       }
     }
   })
 }
+
+onMounted(() => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    router.push('/home')
+  }
+})
 </script>
 
 <style scoped>

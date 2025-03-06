@@ -1,44 +1,46 @@
 package com.oj.service.impl;
 
-import com.alibaba.excel.EasyExcel;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oj.common.ErrorCode;
+import com.oj.constant.ProblemConstant;
 import com.oj.exception.BusinessException;
-import com.oj.listener.ProblemImportListener;
-import com.oj.mapper.ProblemMapper;
-import com.oj.mapper.ChoiceProblemMapper;
-import com.oj.mapper.JudgeProblemMapper;
-import com.oj.mapper.ProgrammingProblemMapper;
-import com.oj.model.dto.ProblemAddRequest;
-import com.oj.model.dto.ProblemExcelDTO;
-import com.oj.model.dto.ProblemQueryRequest;
-import com.oj.model.dto.ProblemUpdateRequest;
+import com.oj.mapper.*;
+import com.oj.model.dto.ProblemDTO;
 import com.oj.model.entity.*;
+import com.oj.model.enums.ProblemTypeEnum;
+import com.oj.model.enums.SubmissionStatusEnum;
+import com.oj.model.request.ProblemAddRequest;
+import com.oj.model.request.ProblemQueryRequest;
+import com.oj.model.request.ProblemUpdateRequest;
+
+import com.oj.model.vo.ProblemVO;
+import com.oj.model.vo.UserVO;
 import com.oj.service.ProblemService;
+import com.oj.service.UserService;
+import com.oj.utils.ValidateUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-/**
- * 问题服务实现类
- */
-@Slf4j
 @Service
-public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> implements ProblemService {
+@Slf4j
+public class ProblemServiceImpl implements ProblemService {
+
+    @Resource
+    private ProblemMapper problemMapper;
 
     @Resource
     private ChoiceProblemMapper choiceProblemMapper;
@@ -49,451 +51,485 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
     @Resource
     private ProgrammingProblemMapper programmingProblemMapper;
 
+    @Resource
+    private UserService userService;
+
+    @Resource
+    private ObjectMapper objectMapper;
+
+    @Resource
+    private SubmissionMapper submissionMapper;
+
     @Override
-    public long addProblem(ProblemAddRequest problemAddRequest) {
+    @Transactional(rollbackFor = Exception.class)
+    public Long addProblem(ProblemAddRequest request, Long userId) {
+        // 1. 参数校验
+        ValidateUtils.validateProblemType(request.getType());
+        ValidateUtils.validateDifficulty(request.getDifficulty());
+
+        // 2. 创建题目基本信息
         Problem problem = new Problem();
-        BeanUtils.copyProperties(problemAddRequest, problem);
-        // 设置初始值
-        problem.setSubmissionCount(0);
+        BeanUtils.copyProperties(request, problem);
+        problem.setUserId(userId);
         problem.setAcceptRate("0%");
-        // 校验
-        validProblem(problem, true);
-        // 保存到数据库
-        boolean result = this.save(problem);
-        if (!result) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR);
+        problem.setSubmissionCount(0);
+        problem.setSolutionCount(0);
+
+        // 3. 处理标签
+        if (StringUtils.isNotBlank(request.getTags())) {
+            problem.setTags(formatTags(request.getTags()));
         }
+
+        // 4. 保存题目基本信息
+        if (problemMapper.insert(problem) <= 0) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "题目创建失败");
+        }
+
+        // 5. 保存具体题目内容
+        try {
+            saveProblemDetail(problem.getId(), request.getType(), request.getProblemDetail());
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "题目详情创建失败");
+        }
+
         return problem.getId();
     }
 
     @Override
-    public boolean deleteProblem(long id) {
-        return this.removeById(id);
-    }
+    @Transactional(rollbackFor = Exception.class)
+    public boolean updateProblem(ProblemUpdateRequest request, Long userId) {
+        // 1. 校验题目是否存在且有权限
+        Problem oldProblem = validateProblem(request.getId(), userId);
 
-    @Override
-    public boolean updateProblem(ProblemUpdateRequest problemUpdateRequest) {
+        // 2. 校验参数
+        ValidateUtils.validateProblemType(request.getType());
+        ValidateUtils.validateDifficulty(request.getDifficulty());
+
+        // 3. 更新基本信息
         Problem problem = new Problem();
-        BeanUtils.copyProperties(problemUpdateRequest, problem);
-        // 校验
-        validProblem(problem, false);
-        return this.updateById(problem);
+        BeanUtils.copyProperties(request, problem);
+        
+        if (StringUtils.isNotBlank(request.getTags())) {
+            problem.setTags(formatTags(request.getTags()));
+        }
+
+        // 4. 更新题目详情
+        if (StringUtils.isNotBlank(request.getProblemDetail())) {
+            try {
+                updateProblemDetail(problem.getId(), request.getType(), request.getProblemDetail());
+            } catch (Exception e) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "题目详情更新失败");
+            }
+        }
+
+        return problemMapper.updateById(problem) > 0;
     }
 
     @Override
-    public Problem getProblemById(long id) {
-        return this.getById(id);
+    @Transactional(rollbackFor = Exception.class)
+    public boolean deleteProblem(Long id, Long userId) {
+        // 校验题目是否存在且有权限
+        Problem problem = validateProblem(id, userId);
+        
+        // 删除具体题目内容
+        deleteProblemDetail(id, problem.getType());
+        
+        // 删除题目基本信息
+        return problemMapper.deleteById(id) > 0;
     }
 
     @Override
-    public Page<Problem> listProblemByPage(ProblemQueryRequest problemQueryRequest) {
-        long current = problemQueryRequest.getCurrent();
-        long pageSize = problemQueryRequest.getPageSize();
-        // 限制爬虫
-        if (pageSize > 20) {
+    public ProblemVO getProblemById(Long id, Long userId) {
+        // 1. 获取题目基本信息
+        Problem problem = problemMapper.selectById(id);
+        if (problem == null || problem.getIsDelete() == 1) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
+        }
+
+        // 2. 转换为VO对象
+        return problemToVO(problem, userId);
+    }
+
+    @Override
+    public Page<ProblemVO> listProblem(ProblemQueryRequest request) {
+        // 1. 创建查询条件
+        LambdaQueryWrapper<Problem> queryWrapper = buildQueryWrapper(request);
+
+        // 2. 分页查询
+        Page<Problem> problemPage = new Page<>(request.getCurrent(), request.getPageSize());
+        problemPage = problemMapper.selectPage(problemPage, queryWrapper);
+
+        // 3. 转换为VO
+        Page<ProblemVO> voPage = new Page<>(problemPage.getCurrent(), problemPage.getSize(), problemPage.getTotal());
+        List<ProblemVO> problemVOList = problemPage.getRecords().stream()
+                .map(problem -> problemToVO(problem, request.getUserId()))
+                .collect(Collectors.toList());
+        voPage.setRecords(problemVOList);
+
+        return voPage;
+    }
+
+    @Override
+    public ProblemDTO getProblemDetail(Long id, Long userId) {
+        // 1. 获取题目基本信息
+        Problem problem = validateProblem(id, userId);
+        
+        // 2. 转换为DTO
+        ProblemDTO problemDTO = new ProblemDTO();
+        BeanUtils.copyProperties(problem, problemDTO);
+
+        // 3. 获取创建者信息
+        User creator = userService.getById(problem.getUserId());
+        problemDTO.setCreatorName(creator != null ? creator.getUserName() : null);
+
+        // 4. 获取具体题目内容
+        try {
+            Object detail = getProblemDetailById(id, problem.getType());
+            problemDTO.setProblemDetail((String) detail);
+        } catch (Exception e) {
+            log.error("获取题目详情失败", e);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "获取题目详情失败");
+        }
+
+        return problemDTO;
+    }
+
+    @Override
+    public Problem validateProblem(Long id, Long userId) {
+        if (id == null || id <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        // 执行查询
-        return this.page(new Page<>(current, pageSize), getQueryWrapper(problemQueryRequest));
+
+        Problem problem = problemMapper.selectById(id);
+        if (problem == null || problem.getIsDelete() == 1) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
+        }
+
+        // 仅创建者和管理员可以操作
+        if (!problem.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+        }
+
+        return problem;
     }
 
-    @Override
-    public QueryWrapper<Problem> getQueryWrapper(ProblemQueryRequest problemQueryRequest) {
-        QueryWrapper<Problem> queryWrapper = new QueryWrapper<>();
-        if (problemQueryRequest == null) {
-            return queryWrapper;
+    /**
+     * 构建查询条件
+     */
+    private LambdaQueryWrapper<Problem> buildQueryWrapper(ProblemQueryRequest request) {
+        LambdaQueryWrapper<Problem> queryWrapper = new LambdaQueryWrapper<>();
+        
+        if (request != null) {
+            // 标题模糊搜索
+            if (StringUtils.isNotBlank(request.getTitle())) {
+                queryWrapper.like(Problem::getTitle, request.getTitle());
+            }
+            // 根据难度筛选
+            if (StringUtils.isNotBlank(request.getDifficulty())) {
+                queryWrapper.eq(Problem::getDifficulty, request.getDifficulty());
+            }
+            // 根据标签筛选
+            if (StringUtils.isNotBlank(request.getTag())) {
+                queryWrapper.like(Problem::getTags, request.getTag());
+            }
+            // 根据题目类型筛选
+            if (StringUtils.isNotBlank(request.getType())) {
+                queryWrapper.eq(Problem::getType, request.getType());
+            }
+            // 根据岗位类型筛选
+            if (StringUtils.isNotBlank(request.getJobType())) {
+                queryWrapper.eq(Problem::getJobType, request.getJobType());
+            }
+            // 创建者筛选
+            if (request.getUserId() != null) {
+                queryWrapper.eq(Problem::getUserId, request.getUserId());
+            }
         }
 
-        String searchText = problemQueryRequest.getSearchText();
-        String type = problemQueryRequest.getType();
-        String jobType = problemQueryRequest.getJobType();
-        String tags = problemQueryRequest.getTags();
-        String difficulty = problemQueryRequest.getDifficulty();
-        String sortField = problemQueryRequest.getSortField();
-        String sortOrder = problemQueryRequest.getSortOrder();
-
-        // 拼接查询条件
-        if (StringUtils.isNotBlank(searchText)) {
-            queryWrapper.like("title", searchText).or().like("content", searchText);
-        }
-        if (StringUtils.isNotBlank(type)) {
-            queryWrapper.eq("type", type);
-        }
-        if (StringUtils.isNotBlank(jobType)) {
-            queryWrapper.eq("jobType", jobType);
-        }
-        if (StringUtils.isNotBlank(tags)) {
-            queryWrapper.like("tags", tags);
-        }
-        if (StringUtils.isNotBlank(difficulty)) {
-            queryWrapper.eq("difficulty", difficulty);
-        }
-
-        // 排序
-        if (StringUtils.isNotBlank(sortField)) {
-            queryWrapper.orderBy(true, "asc".equals(sortOrder), sortField);
-        }
-
+        queryWrapper.eq(Problem::getIsDelete, 0);
         return queryWrapper;
     }
 
+    /**
+     * Problem 转 VO
+     */
     @Override
-    public void validProblem(Problem problem, boolean add) {
+    public ProblemVO problemToVO(Problem problem, Long userId) {
         if (problem == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+            return null;
         }
 
-        String title = problem.getTitle();
-        String content = problem.getContent();
-        String type = problem.getType();
-        String jobType = problem.getJobType();
-        String tags = problem.getTags();
-        String difficulty = problem.getDifficulty();
+        ProblemVO problemVO = new ProblemVO();
+        BeanUtils.copyProperties(problem, problemVO);
 
-        // 创建时，所有参数必须非空
-        if (add) {
-            if (StringUtils.isBlank(title)) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "标题不能为空");
-            }
-            if (StringUtils.isBlank(content)) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "内容不能为空");
-            }
-            if (StringUtils.isBlank(type)) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "题目类型不能为空");
-            }
-            if (StringUtils.isBlank(jobType)) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "岗位类型不能为空");
-            }
-            if (StringUtils.isBlank(difficulty)) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "难度不能为空");
-            }
+        // 设置标签列表
+        if (StringUtils.isNotBlank(problem.getTags())) {
+            problemVO.setTags(Arrays.asList(problem.getTags().split(",")));
         }
 
-        // 如果标题不为空，校验长度
-        if (StringUtils.isNotBlank(title) && title.length() > 512) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "标题过长");
-        }
+        // 直接设置创建者的 userId
+        problemVO.setUserId(problem.getUserId());
 
-        // 如果标签不为空，校验长度
-        if (StringUtils.isNotBlank(tags) && tags.length() > 512) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "标签过长");
-        }
+        return problemVO;
     }
 
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public String importProblems(List<ProblemExcelDTO> problemList) {
-        if (problemList == null || problemList.isEmpty()) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "题目列表为空");
+    /**
+     * 保存具体题目内容
+     */
+    private void saveProblemDetail(Long problemId, String type, String detailJson) throws JsonProcessingException {
+        if (StringUtils.isBlank(detailJson)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "题目详情不能为空");
         }
 
-        int successCount = 0;
-        StringBuilder errorMsg = new StringBuilder();
-
-        for (ProblemExcelDTO problemDTO : problemList) {
-            try {
-                createProblem(problemDTO);
-                successCount++;
-            } catch (Exception e) {
-                errorMsg.append("题目[").append(problemDTO.getTitle()).append("]导入失败：")
-                        .append(e.getMessage()).append("\n");
-            }
-        }
-
-        return String.format("成功导入%d道题目。%s", successCount, 
-                errorMsg.length() > 0 ? "\n失败原因：\n" + errorMsg : "");
-    }
-
-    @Override
-    public void exportProblems(HttpServletResponse response) throws IOException {
-        List<Problem> problems = this.list();
-        List<ProblemExcelDTO> excelDTOs = new ArrayList<>();
-
-        for (Problem problem : problems) {
-            ProblemExcelDTO dto = new ProblemExcelDTO();
-            // 设置基础信息
-            dto.setTitle(problem.getTitle());
-            dto.setContent(problem.getContent());
-            dto.setType(problem.getType());
-            dto.setJobType(problem.getJobType());
-            dto.setTags(problem.getTags());
-            dto.setDifficulty(problem.getDifficulty());
-
-            // 根据题目类型设置特定信息
-            switch (problem.getType()) {
-                case "CHOICE":
-                    ChoiceProblem choiceProblem = choiceProblemMapper.selectById(problem.getId());
-                    if (choiceProblem != null) {
-                        dto.setOptions(choiceProblem.getOptions());
-                        dto.setAnswer(choiceProblem.getAnswer());
-                        dto.setAnalysis(choiceProblem.getAnalysis());
-                    }
-                    break;
-                case "JUDGE":
-                    JudgeProblem judgeProblem = judgeProblemMapper.selectById(problem.getId());
-                    if (judgeProblem != null) {
-                        dto.setAnswer(judgeProblem.getAnswer().toString());
-                        dto.setAnalysis(judgeProblem.getAnalysis());
-                    }
-                    break;
-                case "PROGRAM":
-                    ProgrammingProblem programmingProblem = programmingProblemMapper.selectById(problem.getId());
-                    if (programmingProblem != null) {
-                        dto.setTestCases(programmingProblem.getTestCases());
-                        dto.setSampleInput(programmingProblem.getSampleInput());
-                        dto.setSampleOutput(programmingProblem.getSampleOutput());
-                        dto.setTimeLimit(programmingProblem.getTimeLimit());
-                        dto.setMemoryLimit(programmingProblem.getMemoryLimit());
-                        dto.setAnswer(programmingProblem.getTemplateCode());
-                    }
-                    break;
-                default:
-                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "未知的题目类型");
-            }
-            excelDTOs.add(dto);
-        }
-
-        response.setContentType("application/vnd.ms-excel");
-        response.setCharacterEncoding("utf-8");
-        String fileName = URLEncoder.encode("题目列表", String.valueOf(StandardCharsets.UTF_8));
-        response.setHeader("Content-disposition", "attachment;filename=" + fileName + ".xlsx");
-        
-        EasyExcel.write(response.getOutputStream(), ProblemExcelDTO.class)
-                .sheet("题目列表")
-                .doWrite(excelDTOs);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public Long createProblem(ProblemExcelDTO problemDTO) {
-        // 创建基础题目信息
-        Problem problem = new Problem();
-        problem.setTitle(problemDTO.getTitle());
-        problem.setContent(problemDTO.getContent());
-        problem.setType(problemDTO.getType());
-        problem.setJobType(problemDTO.getJobType());
-        problem.setTags(problemDTO.getTags());
-        problem.setDifficulty(problemDTO.getDifficulty());
-        
-        // 保存基础信息
-        if (!this.save(problem)) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "题目保存失败");
-        }
-
-        // 根据题目类型保存特定信息
-        switch (problemDTO.getType()) {
-            case "CHOICE":
-                ChoiceProblem choiceProblem = new ChoiceProblem();
-                choiceProblem.setId(problem.getId());
-                choiceProblem.setOptions(problemDTO.getOptions());
-                choiceProblem.setAnswer(problemDTO.getAnswer());
-                choiceProblem.setAnalysis(problemDTO.getAnalysis());
+        switch (ProblemTypeEnum.valueOf(type)) {
+            case CHOICE:
+                ChoiceProblem choiceProblem = objectMapper.readValue(detailJson, ChoiceProblem.class);
+                choiceProblem.setId(problemId);
+                validateChoiceProblem(choiceProblem);
                 choiceProblemMapper.insert(choiceProblem);
                 break;
-            case "JUDGE":
-                JudgeProblem judgeProblem = new JudgeProblem();
-                judgeProblem.setId(problem.getId());
-                judgeProblem.setAnswer(Boolean.parseBoolean(problemDTO.getAnswer()));
-                judgeProblem.setAnalysis(problemDTO.getAnalysis());
+            case JUDGE:
+                JudgeProblem judgeProblem = objectMapper.readValue(detailJson, JudgeProblem.class);
+                judgeProblem.setId(problemId);
+                validateJudgeProblem(judgeProblem);
                 judgeProblemMapper.insert(judgeProblem);
                 break;
-            case "PROGRAM":
-                ProgrammingProblem programmingProblem = new ProgrammingProblem();
-                programmingProblem.setId(problem.getId());
-                programmingProblem.setTestCases(problemDTO.getTestCases());
-                programmingProblem.setSampleInput(problemDTO.getSampleInput());
-                programmingProblem.setSampleOutput(problemDTO.getSampleOutput());
-                programmingProblem.setTimeLimit(problemDTO.getTimeLimit());
-                programmingProblem.setMemoryLimit(problemDTO.getMemoryLimit());
-                programmingProblem.setTemplateCode(problemDTO.getAnswer());
+            case PROGRAM:
+                ProgrammingProblem programmingProblem = objectMapper.readValue(detailJson, ProgrammingProblem.class);
+                programmingProblem.setId(problemId);
+                validateProgrammingProblem(programmingProblem);
                 programmingProblemMapper.insert(programmingProblem);
                 break;
             default:
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "未知的题目类型");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "不支持的题目类型");
         }
-
-        return problem.getId();
     }
 
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void updateProblem(Long id, ProblemExcelDTO problemDTO) {
-        Problem problem = this.getById(id);
-        if (problem == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "题目不存在");
+    /**
+     * 更新具体题目内容
+     */
+    private void updateProblemDetail(Long problemId, String type, String detailJson) throws JsonProcessingException {
+        if (StringUtils.isBlank(detailJson)) {
+            return;
         }
 
-        // 更新基础信息
-        problem.setTitle(problemDTO.getTitle());
-        problem.setContent(problemDTO.getContent());
-        problem.setJobType(problemDTO.getJobType());
-        problem.setTags(problemDTO.getTags());
-        problem.setDifficulty(problemDTO.getDifficulty());
-        
-        if (!this.updateById(problem)) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "题目更新失败");
-        }
-
-        // 根据题目类型更新特定信息
-        switch (problemDTO.getType()) {
-            case "CHOICE":
-                ChoiceProblem choiceProblem = new ChoiceProblem();
-                choiceProblem.setId(id);
-                choiceProblem.setOptions(problemDTO.getOptions());
-                choiceProblem.setAnswer(problemDTO.getAnswer());
-                choiceProblem.setAnalysis(problemDTO.getAnalysis());
+        switch (ProblemTypeEnum.valueOf(type)) {
+            case CHOICE:
+                ChoiceProblem choiceProblem = objectMapper.readValue(detailJson, ChoiceProblem.class);
+                choiceProblem.setId(problemId);
+                validateChoiceProblem(choiceProblem);
                 choiceProblemMapper.updateById(choiceProblem);
                 break;
-            case "JUDGE":
-                JudgeProblem judgeProblem = new JudgeProblem();
-                judgeProblem.setId(id);
-                judgeProblem.setAnswer(Boolean.parseBoolean(problemDTO.getAnswer()));
-                judgeProblem.setAnalysis(problemDTO.getAnalysis());
+            case JUDGE:
+                JudgeProblem judgeProblem = objectMapper.readValue(detailJson, JudgeProblem.class);
+                judgeProblem.setId(problemId);
+                validateJudgeProblem(judgeProblem);
                 judgeProblemMapper.updateById(judgeProblem);
                 break;
-            case "PROGRAM":
-                ProgrammingProblem programmingProblem = new ProgrammingProblem();
-                programmingProblem.setId(id);
-                programmingProblem.setTestCases(problemDTO.getTestCases());
-                programmingProblem.setSampleInput(problemDTO.getSampleInput());
-                programmingProblem.setSampleOutput(problemDTO.getSampleOutput());
-                programmingProblem.setTimeLimit(problemDTO.getTimeLimit());
-                programmingProblem.setMemoryLimit(problemDTO.getMemoryLimit());
-                programmingProblem.setTemplateCode(problemDTO.getAnswer());
+            case PROGRAM:
+                ProgrammingProblem programmingProblem = objectMapper.readValue(detailJson, ProgrammingProblem.class);
+                programmingProblem.setId(problemId);
+                validateProgrammingProblem(programmingProblem);
                 programmingProblemMapper.updateById(programmingProblem);
                 break;
             default:
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "未知的题目类型");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "不支持的题目类型");
         }
     }
 
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void deleteProblem(Long id) {
-        Problem problem = this.getById(id);
-        if (problem == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "题目不存在");
-        }
-
-        // 删除基础信息
-        if (!this.removeById(id)) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "题目删除失败");
-        }
-
-        // 根据题目类型删除特定信息
-        switch (problem.getType()) {
-            case "CHOICE":
-                choiceProblemMapper.deleteById(id);
+    /**
+     * 删除具体题目内容
+     */
+    private void deleteProblemDetail(Long problemId, String type) {
+        switch (ProblemTypeEnum.valueOf(type)) {
+            case CHOICE:
+                choiceProblemMapper.deleteById(problemId);
                 break;
-            case "JUDGE":
-                judgeProblemMapper.deleteById(id);
+            case JUDGE:
+                judgeProblemMapper.deleteById(problemId);
                 break;
-            case "PROGRAM":
-                programmingProblemMapper.deleteById(id);
+            case PROGRAM:
+                programmingProblemMapper.deleteById(problemId);
                 break;
             default:
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "未知的题目类型");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "不支持的题目类型");
         }
     }
 
-    @Override
-    public ProblemExcelDTO getProblemDetail(Long id) {
-        Problem problem = this.getById(id);
-        if (problem == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "题目不存在");
-        }
-
-        ProblemExcelDTO dto = new ProblemExcelDTO();
-        // 设置基础信息
-        dto.setTitle(problem.getTitle());
-        dto.setContent(problem.getContent());
-        dto.setType(problem.getType());
-        dto.setJobType(problem.getJobType());
-        dto.setTags(problem.getTags());
-        dto.setDifficulty(problem.getDifficulty());
-
-        // 根据题目类型获取特定信息
-        switch (problem.getType()) {
-            case "CHOICE":
-                ChoiceProblem choiceProblem = choiceProblemMapper.selectById(id);
-                if (choiceProblem != null) {
-                    dto.setOptions(choiceProblem.getOptions());
-                    dto.setAnswer(choiceProblem.getAnswer());
-                    dto.setAnalysis(choiceProblem.getAnalysis());
-                }
-                break;
-            case "JUDGE":
-                JudgeProblem judgeProblem = judgeProblemMapper.selectById(id);
-                if (judgeProblem != null) {
-                    dto.setAnswer(judgeProblem.getAnswer().toString());
-                    dto.setAnalysis(judgeProblem.getAnalysis());
-                }
-                break;
-            case "PROGRAM":
-                ProgrammingProblem programmingProblem = programmingProblemMapper.selectById(id);
-                if (programmingProblem != null) {
-                    dto.setTestCases(programmingProblem.getTestCases());
-                    dto.setSampleInput(programmingProblem.getSampleInput());
-                    dto.setSampleOutput(programmingProblem.getSampleOutput());
-                    dto.setTimeLimit(programmingProblem.getTimeLimit());
-                    dto.setMemoryLimit(programmingProblem.getMemoryLimit());
-                    dto.setAnswer(programmingProblem.getTemplateCode());
-                }
-                break;
+    /**
+     * 获取具体题目内容
+     */
+    private Object getProblemDetailById(Long problemId, String type) {
+        switch (ProblemTypeEnum.valueOf(type)) {
+            case CHOICE:
+                return choiceProblemMapper.selectById(problemId);
+            case JUDGE:
+                return judgeProblemMapper.selectById(problemId);
+            case PROGRAM:
+                return programmingProblemMapper.selectById(problemId);
             default:
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "未知的题目类型");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "不支持的题目类型");
         }
-
-        return dto;
     }
 
-    @Override
-    public List<Problem> searchProblems(String title, String content, String type, String jobType,
-                                      String difficulty, String tags, String sortField, String sortOrder) {
-        // 构建查询条件
-        LambdaQueryWrapper<Problem> queryWrapper = new LambdaQueryWrapper<>();
+    /**
+     * 校验选择题
+     */
+    private void validateChoiceProblem(ChoiceProblem choiceProblem) {
+        if (choiceProblem == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        if (StringUtils.isBlank(choiceProblem.getOptions())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "选项不能为空");
+        }
+        if (StringUtils.isBlank(choiceProblem.getAnswer())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "答案不能为空");
+        }
+    }
+
+    /**
+     * 校验判断题
+     */
+    private void validateJudgeProblem(JudgeProblem judgeProblem) {
+        if (judgeProblem == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        if (judgeProblem.getAnswer() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "答案不能为空");
+        }
+    }
+
+    /**
+     * 校验编程题
+     */
+    private void validateProgrammingProblem(ProgrammingProblem programmingProblem) {
+        if (programmingProblem == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        if (StringUtils.isBlank(programmingProblem.getFunctionName())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "函数名称不能为空");
+        }
+        if (StringUtils.isBlank(programmingProblem.getParamTypes())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数类型不能为空");
+        }
+        if (StringUtils.isBlank(programmingProblem.getReturnType())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "返回值类型不能为空");
+        }
+        if (StringUtils.isBlank(programmingProblem.getTestCases())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "测试用例不能为空");
+        }
+    }
+
+    /**
+     * 格式化标签
+     */
+    private String formatTags(String tags) {
+        if (StringUtils.isBlank(tags)) {
+            return "";
+        }
+        String[] tagArray = tags.split(",");
+        Set<String> tagSet = Arrays.stream(tagArray)
+                .map(String::trim)
+                .filter(StringUtils::isNotBlank)
+                .collect(Collectors.toSet());
         
-        // 添加查询条件
-        if (StringUtils.isNotBlank(title)) {
-            queryWrapper.like(Problem::getTitle, title);
+        if (tagSet.size() > ProblemConstant.MAX_TAGS_COUNT) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "标签数量不能超过" + ProblemConstant.MAX_TAGS_COUNT);
         }
-        if (StringUtils.isNotBlank(content)) {
-            queryWrapper.like(Problem::getContent, content);
-        }
-        if (StringUtils.isNotBlank(type)) {
-            queryWrapper.eq(Problem::getType, type);
-        }
-        if (StringUtils.isNotBlank(jobType)) {
-            queryWrapper.eq(Problem::getJobType, jobType);
-        }
-        if (StringUtils.isNotBlank(difficulty)) {
-            queryWrapper.eq(Problem::getDifficulty, difficulty);
-        }
-        if (StringUtils.isNotBlank(tags)) {
-            queryWrapper.like(Problem::getTags, tags);
-        }
+        
+        return String.join(",", tagSet);
+    }
 
-        // 添加排序条件
-        if (StringUtils.isNotBlank(sortField)) {
-            // 根据sortOrder判断升序还是降序
-            boolean isAsc = !"desc".equalsIgnoreCase(sortOrder);
-            switch (sortField) {
-                case "createTime":
-                    queryWrapper.orderBy(true, isAsc, Problem::getCreateTime);
-                    break;
-                case "updateTime":
-                    queryWrapper.orderBy(true, isAsc, Problem::getUpdateTime);
-                    break;
-                case "difficulty":
-                    queryWrapper.orderBy(true, isAsc, Problem::getDifficulty);
-                    break;
-                default:
-                    queryWrapper.orderBy(true, isAsc, Problem::getId);
-                    break;
-            }
+    @Override
+    public void updateProblemSubmitInfo(Long problemId) {
+        if (problemId == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+        Problem problem = problemMapper.selectById(problemId);
+        if (problem == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
+        }
+        
+        // 查询提交记录统计信息
+        LambdaQueryWrapper<Submission> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Submission::getProblemId, problemId);
+        long totalSubmissions = submissionMapper.selectCount(wrapper);
+        
+        // 查询通过的提交数
+        wrapper.eq(Submission::getStatus, SubmissionStatusEnum.ACCEPTED.name());
+        long acceptedSubmissions = submissionMapper.selectCount(wrapper);
+        
+        // 计算通过率
+        String acceptRate = totalSubmissions > 0 
+            ? String.format("%.1f%%", (acceptedSubmissions * 100.0) / totalSubmissions)
+            : "0%";
+        
+        // 更新题目信息
+        problem.setSubmissionCount((int) totalSubmissions);
+        problem.setAcceptRate(acceptRate);
+        problemMapper.updateById(problem);
+    }
 
-        // 执行查询
-        return this.list(queryWrapper);
+    @Override
+    public List<ProblemVO> getProblemsByIds(List<Long> problemIds) {
+        if (CollectionUtils.isEmpty(problemIds)) {
+            return new ArrayList<>();
+        }
+        return problemMapper.selectBatchIds(problemIds).stream()
+                .map(problem -> problemToVO(problem, null))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public ProblemDTO problemToDTO(Problem problem) {
+        if (problem == null) {
+            return null;
+        }
+        ProblemDTO problemDTO = new ProblemDTO();
+        BeanUtils.copyProperties(problem, problemDTO);
+        return problemDTO;
+    }
+
+    @Override
+    public ProblemVO dtoToVO(ProblemDTO problemDTO) {
+        if (problemDTO == null) {
+            return null;
+        }
+        ProblemVO problemVO = new ProblemVO();
+        BeanUtils.copyProperties(problemDTO, problemVO);
+        if (StringUtils.isNotBlank(problemDTO.getTags())) {
+            problemVO.setTags(Arrays.asList(problemDTO.getTags().split(",")));
+        }
+        return problemVO;
+    }
+
+    @Override
+    public List<ProblemVO> getProblemsByUserId(Long userId) {
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        LambdaQueryWrapper<Problem> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Problem::getUserId, userId);
+        queryWrapper.eq(Problem::getIsDelete, 0); // 确保只查询未删除的题目
+        List<Problem> problems = problemMapper.selectList(queryWrapper);
+        return problems.stream()
+                .map(problem -> problemToVO(problem, userId))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ProblemVO> searchProblems(String keyword) {
+        if (StringUtils.isBlank(keyword)) {
+            return new ArrayList<>();
+        }
+        LambdaQueryWrapper<Problem> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.like(Problem::getTitle, keyword)
+                    .or()
+                    .like(Problem::getContent, keyword)
+                    .eq(Problem::getIsDelete, 0); // 确保只查询未删除的题目
+        List<Problem> problems = problemMapper.selectList(queryWrapper);
+        return problems.stream()
+                .map(problem -> problemToVO(problem, null))
+                .collect(Collectors.toList());
     }
 } 

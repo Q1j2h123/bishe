@@ -1,67 +1,42 @@
 package com.oj.model.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+
 import lombok.Data;
 
 import java.io.Serializable;
 import java.util.Date;
 
+
 @Data
-@TableName("user")
-@ApiModel(description = "用户实体")
+@TableName("user") // 映射到数据库中的 user 表
 public class User implements Serializable {
-
-    @ApiModelProperty("用户ID")
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.AUTO) // 主键自增
+    @TableField("id")  // 指定数据库字段名
     private Long id;
-
-    @ApiModelProperty("用户账号")
-    @TableField("userAccount")
+    
+    @TableField("userAccount")  // 指定数据库字段名
     private String userAccount;
-
-    @ApiModelProperty("用户密码")
+    
     @TableField("userPassword")
     private String userPassword;
-
-    @ApiModelProperty("微信开放平台id")
-    @TableField("unionId")
-    private String unionId;
-
-    @ApiModelProperty("微信公众号openId")
-    @TableField("mpOpenId")
-    private String mpOpenId;
-
-    @ApiModelProperty("用户昵称")
+    
     @TableField("userName")
     private String userName;
-
-    @ApiModelProperty("用户头像")
     @TableField("userAvatar")
     private String userAvatar;
-
-    @ApiModelProperty("用户简介")
     @TableField("userProfile")
     private String userProfile;
-
-    @ApiModelProperty("用户角色：user/admin")
     @TableField("userRole")
     private String userRole;
 
-    @ApiModelProperty("是否删除")
     @TableField("isDelete")
     @TableLogic
     private Integer isDelete;
 
-    @ApiModelProperty("创建时间")
-    @TableField(value = "createTime", fill = FieldFill.INSERT)
+    @TableField(value = "createTime", fill = FieldFill.INSERT) // 自动填充
     private Date createTime;
 
-    @ApiModelProperty("更新时间")
-    @TableField(value = "updateTime", fill = FieldFill.INSERT_UPDATE)
+    @TableField(value = "updateTime", fill = FieldFill.INSERT_UPDATE) // 自动填充
     private Date updateTime;
-
-    @TableField(exist = false)
-    private static final long serialVersionUID = 1L;
-} 
+}
