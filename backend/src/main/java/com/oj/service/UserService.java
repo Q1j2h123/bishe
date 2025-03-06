@@ -31,6 +31,13 @@ public interface UserService extends IService<User> {
     User userLogin(String userAccount, String userPassword);
 
     /**
+     * 用户登出
+     * @param request 请求
+     * @return 是否登出成功
+     */
+    boolean userLogout(HttpServletRequest request);
+
+    /**
      * 获取当前登录用户
      * @param request
      * @return
@@ -67,4 +74,18 @@ public interface UserService extends IService<User> {
     boolean updateUser(UserDTO userDTO);
 
     boolean deleteUser(Long userId);
+
+    /**
+     * 获取当前登录用户
+     * @param request
+     * @return
+     */
+    UserDTO getCurrentUser(HttpServletRequest request);
+
+    /**
+     * 获取用户
+     * @param id 用户id
+     * @return 用户实体
+     */
+    User getById(Long id);
 }

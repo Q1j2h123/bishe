@@ -32,6 +32,11 @@ public interface QuestionBankService {
     QuestionBankVO getQuestionBankById(Long id, Long userId);
 
     /**
+     * 根据ID获取题库详细信息
+     */
+    QuestionBankDTO getQuestionBankDetail(Long id, Long userId);
+
+    /**
      * 分页获取题库列表
      */
     Page<QuestionBankVO> listQuestionBank(QuestionBankQueryRequest request);

@@ -6,10 +6,7 @@ import com.oj.exception.BusinessException;
 import com.oj.model.entity.User;
 import com.oj.service.UserService;
 import com.oj.utils.JwtUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.lang.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -19,15 +16,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 @Component
+@Slf4j
 public class LoginInterceptor implements HandlerInterceptor {
 
-    private static final Logger logger = LoggerFactory.getLogger(LoginInterceptor.class);
-
-    @Value("${jwt.header}")
-    private String headerName;
-
-    @Value("${jwt.token-prefix}")
-    private String tokenPrefix;
+    private static final String HEADER_NAME = "Authorization";
+    private static final String TOKEN_PREFIX = "Bearer ";
 
     @Resource
     private JwtUtils jwtUtils;
@@ -36,62 +29,66 @@ public class LoginInterceptor implements HandlerInterceptor {
     private UserService userService;
 
     @Override
-    public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         try {
-            logger.debug("Request URI: {}", request.getRequestURI());
-            logger.debug("Request Method: {}", request.getMethod());
-
-            // 获取token
-            String header = request.getHeader(headerName);
-            logger.debug("Received header: {}", header);
-
-            // 检查header是否存在
+            // 获取请求头中的token
+            String header = request.getHeader(HEADER_NAME);
             if (!StringUtils.hasText(header)) {
-                logger.debug("No authorization header found");
-                throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "未提供认证信息");
+                log.error("认证失败: 未提供认证信息");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return false;
             }
 
             // 检查header格式
-            if (!header.startsWith(tokenPrefix)) {
-                logger.debug("Invalid authorization header format");
-                throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "认证信息格式错误");
+            if (!header.startsWith(TOKEN_PREFIX)) {
+                log.error("认证失败: 认证信息格式错误");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return false;
             }
 
             // 提取token
-            String token = header.substring(tokenPrefix.length()).trim();
+            String token = header.substring(TOKEN_PREFIX.length()).trim();
             if (!StringUtils.hasText(token)) {
-                logger.debug("Empty token");
-                throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "令牌为空");
+                log.error("认证失败: 令牌为空");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return false;
             }
 
             // 验证token
             if (!jwtUtils.validateToken(token)) {
-                logger.debug("Invalid token");
-                throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "令牌无效");
+                log.error("认证失败: 认证信息无效");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return false;
             }
 
             // 获取用户信息
             Long userId = jwtUtils.getUserIdFromToken(token);
-            User user = userService.getById(userId);
-            if (user == null) {
-                logger.debug("User not found for id: {}", userId);
-                throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "用户不存在");
+            if (userId == null) {
+                log.error("认证失败: 用户信息获取失败");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return false;
             }
 
-            // 设置用户信息到上下文
+            // 查询用户
+            User user = userService.getById(userId);
+            if (user == null) {
+                log.error("认证失败: 用户不存在");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return false;
+            }
+
+            // 设置用户上下文
             UserContext.setUser(user);
             return true;
-        } catch (BusinessException e) {
-            logger.error("BusinessException: {}", e.getMessage());
-            throw e; // 重新抛出业务异常
         } catch (Exception e) {
-            logger.error("Authentication error", e);
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "认证过程发生错误");
+            log.error("认证过程发生错误", e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            return false;
         }
     }
 
     @Override
-    public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler, Exception ex) {
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
         // 清理用户上下文
         UserContext.clear();
     }

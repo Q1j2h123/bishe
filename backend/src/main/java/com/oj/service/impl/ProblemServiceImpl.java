@@ -87,7 +87,7 @@ public class ProblemServiceImpl implements ProblemService {
 
         // 5. 保存具体题目内容
         try {
-            saveProblemDetail(problem.getId(), request.getType(), request.getProblemDetail());
+            saveProblemDetail(problem.getId(), request.getType(), (String) request.getProblemDetail());
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "题目详情创建失败");
         }
@@ -114,9 +114,9 @@ public class ProblemServiceImpl implements ProblemService {
         }
 
         // 4. 更新题目详情
-        if (StringUtils.isNotBlank(request.getProblemDetail())) {
+        if (StringUtils.isNotBlank((CharSequence) request.getProblemDetail())) {
             try {
-                updateProblemDetail(problem.getId(), request.getType(), request.getProblemDetail());
+                updateProblemDetail(problem.getId(), request.getType(), (String) request.getProblemDetail());
             } catch (Exception e) {
                 throw new BusinessException(ErrorCode.SYSTEM_ERROR, "题目详情更新失败");
             }

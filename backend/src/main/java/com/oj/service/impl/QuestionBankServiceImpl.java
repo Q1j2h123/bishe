@@ -369,16 +369,38 @@ public class QuestionBankServiceImpl implements QuestionBankService {
     }
 
     @Override
+    public QuestionBankDTO getQuestionBankDetail(Long id, Long userId) {
+        // 1. 获取题库基本信息
+        QuestionBank questionBank = questionBankMapper.selectById(id);
+        if (questionBank == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "题库不存在");
+        }
+
+        // 2. 判断权限
+        if (!questionBank.getUserId().equals(userId) && !"PUBLIC".equals(questionBank.getPermission())) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限访问该题库");
+        }
+
+        // 3. 获取题库中的题目列表
+        List<Long> problemIds = getProblemIdsByBankId(id);
+
+        // 4. 构建 DTO
+        QuestionBankDTO questionBankDTO = new QuestionBankDTO();
+        BeanUtils.copyProperties(questionBank, questionBankDTO);
+        questionBankDTO.setProblemIds(problemIds);
+        questionBankDTO.setProblemCount(problemIds.size());
+
+        return questionBankDTO;
+    }
+
+    @Override
     public QuestionBankVO dtoToVO(QuestionBankDTO questionBankDTO) {
         if (questionBankDTO == null) {
             return null;
         }
-        QuestionBankVO bankVO = new QuestionBankVO();
-        BeanUtils.copyProperties(questionBankDTO, bankVO);
-        if (StringUtils.isNotBlank(questionBankDTO.getTags())) {
-            bankVO.setTags(Arrays.asList(questionBankDTO.getTags().split(",")));
-        }
-        return bankVO;
+        QuestionBankVO questionBankVO = new QuestionBankVO();
+        BeanUtils.copyProperties(questionBankDTO, questionBankVO);
+        return questionBankVO;
     }
 
     @Override

@@ -3,11 +3,12 @@ package com.oj.model.dto;
 import lombok.Data;
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class QuestionBankDTO implements Serializable {
     /**
-     * 题库id
+     * 题库ID
      */
     private Long id;
 
@@ -27,9 +28,9 @@ public class QuestionBankDTO implements Serializable {
     private String difficulty;
 
     /**
-     * 标签（逗号分隔）
+     * 标签列表
      */
-    private String tags;
+    private List<String> tags;
 
     /**
      * 权限（PUBLIC-公开, PRIVATE-私有, SHARED-共享）
@@ -47,7 +48,7 @@ public class QuestionBankDTO implements Serializable {
     private Integer isRecommended;
 
     /**
-     * 创建用户id
+     * 创建用户ID
      */
     private Long userId;
 
@@ -55,6 +56,11 @@ public class QuestionBankDTO implements Serializable {
      * 题目数量
      */
     private Integer problemCount;
+
+    /**
+     * 题目ID列表
+     */
+    private List<Long> problemIds;
 
     /**
      * 创建时间

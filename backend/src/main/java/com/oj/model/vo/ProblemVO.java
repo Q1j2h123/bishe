@@ -2,7 +2,9 @@ package com.oj.model.vo;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.oj.model.entity.Problem;
-import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+
 import lombok.Data;
 
 import java.io.Serializable;
@@ -12,44 +14,44 @@ import java.util.Date;
 import java.util.List;
 
 @Data
-@Schema(description = "题目视图对象")
+@ApiModel(description = "题目视图对象")
 public class ProblemVO implements Serializable {
     
-    @Schema(description = "题目id")
+    @ApiModelProperty(value = "题目ID")
     private Long id;
 
-    @Schema(description = "题目标题")
+    @ApiModelProperty(value = "题目标题")
     private String title;
 
-    @Schema(description = "题目内容")
+    @ApiModelProperty(value = "题目内容")
     private String content;
 
-    @Schema(description = "题目类型（CHOICE-选择题, JUDGE-判断题, PROGRAM-编程题）")
+    @ApiModelProperty(value = "题目类型（CHOICE-选择题, JUDGE-判断题, PROGRAM-编程题）")
     private String type;
 
-    @Schema(description = "岗位类型")
+    @ApiModelProperty(value = "岗位类型")
     private String jobType;
 
-    @Schema(description = "题目难度（EASY-简单, MEDIUM-中等, HARD-困难）")
+    @ApiModelProperty(value = "题目难度（EASY-简单, MEDIUM-中等, HARD-困难）")
     private String difficulty;
 
-    @Schema(description = "通过率")
-    private String acceptRate;
-
-    @Schema(description = "提交次数")
-    private Integer submissionCount;
-
-    @Schema(description = "创建者id")
-    private Long userId;
-
-    @Schema(description = "标签列表")
+    @ApiModelProperty(value = "标签列表")
     private List<String> tags;
 
-    @Schema(description = "创建时间")
+    @ApiModelProperty(value = "通过率")
+    private String acceptRate;
+
+    @ApiModelProperty(value = "提交次数")
+    private Integer submissionCount;
+
+    @ApiModelProperty(value = "创建用户ID")
+    private Long userId;
+
+    @ApiModelProperty(value = "创建时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date createTime;
 
-    @Schema(description = "更新时间")
+    @ApiModelProperty(value = "更新时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date updateTime;
 

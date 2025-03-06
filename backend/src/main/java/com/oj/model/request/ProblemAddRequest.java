@@ -5,6 +5,7 @@ import lombok.Data;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
+import javax.validation.constraints.NotNull;
 
 @Data
 public class ProblemAddRequest {
@@ -23,8 +24,8 @@ public class ProblemAddRequest {
     @Pattern(regexp = "EASY|MEDIUM|HARD", message = "难度值不合法")
     private String difficulty;
     /**
-     * 具体题目内容（选择题、判断题、编程题）的JSON字符串
+     * 具体题目内容（选择题、判断题、编程题）
      */
-    @NotBlank(message = "题目详情不能为空")
-    private String problemDetail;
+    @NotNull(message = "题目详情不能为空")
+    private Object problemDetail;
 }

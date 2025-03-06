@@ -2,7 +2,8 @@ package com.oj.model.vo;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.oj.model.entity.QuestionBank;
-import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -12,47 +13,47 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 @Data
-@Schema(description = "题库视图对象")
+@ApiModel(description = "题库视图对象")
 public class QuestionBankVO implements Serializable {
     
-    @Schema(description = "题库id")
+    @ApiModelProperty(value = "题库ID")
     private Long id;
 
-    @Schema(description = "题库名称")
+    @ApiModelProperty(value = "题库名称")
     private String name;
 
-    @Schema(description = "题库描述")
+    @ApiModelProperty(value = "题库描述")
     private String description;
 
-    @Schema(description = "难度（EASY-简单, MEDIUM-中等, HARD-困难）")
+    @ApiModelProperty(value = "难度（EASY-简单, MEDIUM-中等, HARD-困难）")
     private String difficulty;
 
-    @Schema(description = "标签列表")
+    @ApiModelProperty(value = "标签列表")
     private List<String> tags;
 
-    @Schema(description = "权限（PUBLIC-公开, PRIVATE-私有, SHARED-共享）")
+    @ApiModelProperty(value = "权限（PUBLIC-公开, PRIVATE-私有, SHARED-共享）")
     private String permission;
 
-    @Schema(description = "是否热门（0-否, 1-是）")
+    @ApiModelProperty(value = "是否热门（0-否, 1-是）")
     private Integer isHot;
 
-    @Schema(description = "是否推荐（0-否, 1-是）")
+    @ApiModelProperty(value = "是否推荐（0-否, 1-是）")
     private Integer isRecommended;
 
-    @Schema(description = "创建用户id")
+    @ApiModelProperty(value = "创建用户ID")
     private Long userId;
 
-    @Schema(description = "题目数量")
+    @ApiModelProperty(value = "题目数量")
     private Integer problemCount;
 
-    @Schema(description = "题目id列表")
+    @ApiModelProperty(value = "题目ID列表")
     private List<Long> problemIds;
 
-    @Schema(description = "创建时间")
+    @ApiModelProperty(value = "创建时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date createTime;
 
-    @Schema(description = "更新时间")
+    @ApiModelProperty(value = "更新时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date updateTime;
 

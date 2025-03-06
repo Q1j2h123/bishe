@@ -6,14 +6,17 @@ import com.oj.common.ResultUtils;
 import com.oj.exception.BusinessException;
 import com.oj.model.entity.User;
 import com.oj.service.UserService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
-import com.github.xiaoymin.knife4j.annotations.ApiSupport;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
+
 import com.oj.model.request.UserLoginRequest;
 import com.oj.model.request.UserRegisterRequest;
 import com.oj.model.vo.UserLoginVO;
@@ -21,12 +24,14 @@ import com.oj.model.vo.UserVO;
 
 import com.oj.utils.JwtUtils;
 
-import javax.validation.Valid;
+import com.oj.model.dto.UserDTO;
+
+import static com.oj.constant.CommonConstant.USER_LOGIN_STATE;
 
 @RestController
 @RequestMapping("/api/user")
-@Tag(name = "用户接口", description = "用户管理相关接口")
-@ApiSupport(author = "OJ System")
+@Api(tags = "用户管理接口")
+@Slf4j
 public class UserController {
 
     @Resource
@@ -36,16 +41,15 @@ public class UserController {
     private JwtUtils jwtUtils;
 
     @PostMapping("/register")
-    @Operation(summary = "用户注册", description = "注册新用户")
-    @ApiOperationSupport(order = 1)
-    public BaseResponse<Long> register(@RequestBody UserRegisterRequest registerRequest) {
-        if (registerRequest == null) {
+    @ApiOperation(value = "用户注册", notes = "注册新用户，返回用户id")
+    public BaseResponse<Long> userRegister(@ApiParam(value = "注册信息", required = true) @RequestBody @Valid UserRegisterRequest userRegisterRequest) {
+        if (userRegisterRequest == null) {
             return new BaseResponse<>(ErrorCode.PARAMS_ERROR);
         }
-        String userAccount = registerRequest.getUserAccount();
-        String userPassword = registerRequest.getUserPassword();
-        String checkPassword = registerRequest.getCheckPassword();
-        String userName = registerRequest.getUserName();
+        String userAccount = userRegisterRequest.getUserAccount();
+        String userPassword = userRegisterRequest.getUserPassword();
+        String checkPassword = userRegisterRequest.getCheckPassword();
+        String userName = userRegisterRequest.getUserName();
         if (StringUtils.isAnyBlank(userAccount, userPassword, checkPassword, userName)) {
             return new BaseResponse<>(ErrorCode.PARAMS_ERROR);
         }
@@ -54,14 +58,14 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "用户登录", description = "用户登录并返回用户信息")
-    @ApiOperationSupport(order = 2)
-    public BaseResponse<UserLoginVO> login(@RequestBody @Valid UserLoginRequest loginRequest) {
-        if (loginRequest == null) {
+    @ApiOperation(value = "用户登录", notes = "用户登录并返回登录信息")
+    public BaseResponse<UserLoginVO> userLogin(@ApiParam(value = "登录信息", required = true) @RequestBody @Valid UserLoginRequest userLoginRequest,
+                                             HttpServletRequest request) {
+        if (userLoginRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        String userAccount = loginRequest.getUserAccount();
-        String userPassword = loginRequest.getUserPassword();
+        String userAccount = userLoginRequest.getUserAccount();
+        String userPassword = userLoginRequest.getUserPassword();
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -76,17 +80,16 @@ public class UserController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "用户注销", description = "用户退出登录")
-    @ApiOperationSupport(order = 3)
-    public BaseResponse<Boolean> logout() {
-        return BaseResponse.success(true);
+    @ApiOperation(value = "用户登出", notes = "退出登录")
+    public BaseResponse<Boolean> userLogout(HttpServletRequest request) {
+        boolean result = userService.userLogout(request);
+        return ResultUtils.success(result);
     }
 
     @GetMapping("/current")
-    @Operation(summary = "获取当前用户", description = "获取当前登录用户信息")
-    @ApiOperationSupport(order = 4)
-    public BaseResponse<UserVO> getCurrentUser() {
-        User loginUser = userService.getLoginUser(null);
-        return ResultUtils.success(userService.getUserVO(loginUser.getId()));
+    @ApiOperation(value = "获取当前用户", notes = "获取当前登录用户信息")
+    public BaseResponse<UserDTO> getCurrentUser(HttpServletRequest request) {
+        UserDTO user = userService.getCurrentUser(request);
+        return ResultUtils.success(user);
     }
 } 
