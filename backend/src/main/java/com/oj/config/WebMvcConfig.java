@@ -42,6 +42,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/webjars/**",
                         "/v2/api-docs-ext/**",
                         "/v2/api-docs",
+                        "/v3/api-docs/**",
                         "/api/user/login",
                         "/api/user/register"
                 );

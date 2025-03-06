@@ -11,7 +11,6 @@ import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
 
 @Configuration
-
 @EnableKnife4j
 public class Knife4jConfig {
     @Bean
