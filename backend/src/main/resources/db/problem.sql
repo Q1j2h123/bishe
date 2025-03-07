@@ -115,3 +115,9 @@ CREATE TABLE IF NOT EXISTS `choice_judge_submission` (
     PRIMARY KEY (`submissionId`),
     FOREIGN KEY (`submissionId`) REFERENCES `submission` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='选择判断题提交详情';
+
+
+ALTER TABLE `programming_problem`
+ADD COLUMN `standardSolution` json COMMENT '各语言的标准答案，JSON格式，如：{"java": "public class Solution {...}", "python": "class Solution:..."}';
+ALTER TABLE `problem`
+ADD COLUMN `status` json COMMENT '状态（UNSOLVED-未解决，ATTEMPTED-尝试过，SOLVED-已解决）';

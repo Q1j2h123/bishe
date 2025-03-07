@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @ApiModel(description = "题目视图对象")
@@ -54,6 +55,9 @@ public class ProblemVO implements Serializable {
     @ApiModelProperty(value = "更新时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date updateTime;
+
+    @ApiModelProperty(value = "标准答案（仅创建者可见）")
+    private Map<String, String> standardSolution;
 
     private static final long serialVersionUID = 1L;
 

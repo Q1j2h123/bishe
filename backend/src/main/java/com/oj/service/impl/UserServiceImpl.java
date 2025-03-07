@@ -24,7 +24,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static com.oj.constant.CommonConstant.USER_LOGIN_STATE;
+import static com.oj.constant.UserConstant.USER_LOGIN_STATE;
+
 
 @Service
 @Slf4j

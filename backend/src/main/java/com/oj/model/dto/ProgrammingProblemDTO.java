@@ -1,14 +1,16 @@
 package com.oj.model.dto;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
 @Data
-public class ProgrammingProblemDTO implements Serializable {
+@EqualsAndHashCode(callSuper = true)
+public class ProgrammingProblemDTO extends ProblemDTO {
     /**
-     * 函数名称
+     * 函数名
      */
     private String functionName;
 
@@ -28,9 +30,14 @@ public class ProgrammingProblemDTO implements Serializable {
     private List<TestCaseDTO> testCases;
 
     /**
-     * 代码模板（key为语言类型，value为模板代码）
+     * 代码模板
      */
     private Map<String, String> templates;
+
+    /**
+     * 标准答案
+     */
+    private Map<String, String> standardSolution;
 
     /**
      * 时间限制(ms)
@@ -45,22 +52,3 @@ public class ProgrammingProblemDTO implements Serializable {
     private static final long serialVersionUID = 1L;
 }
 
-@Data
-class TestCaseDTO implements Serializable {
-    /**
-     * 输入数据
-     */
-    private String input;
-
-    /**
-     * 期望输出
-     */
-    private String output;
-
-    /**
-     * 是否为示例
-     */
-    private Boolean isExample;
-
-    private static final long serialVersionUID = 1L;
-} 

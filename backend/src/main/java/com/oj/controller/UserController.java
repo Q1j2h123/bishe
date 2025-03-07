@@ -26,7 +26,6 @@ import com.oj.utils.JwtUtils;
 
 import com.oj.model.dto.UserDTO;
 
-import static com.oj.constant.CommonConstant.USER_LOGIN_STATE;
 
 @RestController
 @RequestMapping("/api/user")

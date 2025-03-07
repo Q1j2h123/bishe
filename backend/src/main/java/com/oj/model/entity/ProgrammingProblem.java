@@ -37,6 +37,11 @@ public class ProgrammingProblem {
     private String templates;
 
     /**
+     * 各语言标准答案，JSON格式
+     */
+    private String standardSolution;
+
+    /**
      * 时间限制(ms)
      */
     private Integer timeLimit;

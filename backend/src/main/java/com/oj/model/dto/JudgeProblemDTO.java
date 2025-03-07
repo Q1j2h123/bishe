@@ -1,10 +1,12 @@
 package com.oj.model.dto;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import java.io.Serializable;
 
 @Data
-public class JudgeProblemDTO implements Serializable {
+@EqualsAndHashCode(callSuper = true)
+public class JudgeProblemDTO extends ProblemDTO {
     /**
      * 正确答案
      */

@@ -5,7 +5,7 @@ import lombok.Data;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
-import javax.validation.constraints.NotNull;
+import java.util.List;
 
 @Data
 public class ProblemAddRequest {
@@ -19,13 +19,8 @@ public class ProblemAddRequest {
     private String type;
     @NotBlank(message = "岗位类型不能为空")
     private String jobType;
-    private String tags;
+    private List<String> tags;
     @NotBlank(message = "难度不能为空")
     @Pattern(regexp = "EASY|MEDIUM|HARD", message = "难度值不合法")
     private String difficulty;
-    /**
-     * 具体题目内容（选择题、判断题、编程题）
-     */
-    @NotNull(message = "题目详情不能为空")
-    private Object problemDetail;
 }

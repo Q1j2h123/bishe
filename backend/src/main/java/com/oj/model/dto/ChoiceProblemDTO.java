@@ -1,11 +1,13 @@
 package com.oj.model.dto;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import java.io.Serializable;
 import java.util.List;
 
 @Data
-public class ChoiceProblemDTO implements Serializable {
+@EqualsAndHashCode(callSuper = true)
+public class ChoiceProblemDTO extends ProblemDTO {
     /**
      * 选项列表
      */
@@ -24,17 +26,3 @@ public class ChoiceProblemDTO implements Serializable {
     private static final long serialVersionUID = 1L;
 }
 
-@Data
-class ProblemOptionDTO implements Serializable {
-    /**
-     * 选项键（A、B、C、D）
-     */
-    private String key;
-
-    /**
-     * 选项内容
-     */
-    private String content;
-
-    private static final long serialVersionUID = 1L;
-} 

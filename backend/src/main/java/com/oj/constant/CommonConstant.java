@@ -1,10 +1,7 @@
 package com.oj.constant;
 
 public interface CommonConstant {
-    /**
-     * 用户登录态键
-     */
-    String USER_LOGIN_STATE = "user_login";
+
     
     /**
      * 题目难度枚举

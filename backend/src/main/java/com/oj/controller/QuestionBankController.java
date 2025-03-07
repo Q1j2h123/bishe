@@ -24,7 +24,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.List;
 
-import static com.oj.constant.CommonConstant.USER_LOGIN_STATE;
+import static com.oj.constant.UserConstant.USER_LOGIN_STATE;
+
 
 @RestController
 @RequestMapping("/api/question-bank")

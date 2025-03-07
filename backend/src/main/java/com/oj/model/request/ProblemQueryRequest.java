@@ -7,9 +7,19 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 public class ProblemQueryRequest extends PageRequest {
     /**
-     * 标题
+     * 标题关键词
      */
     private String title;
+
+    /**
+     * 岗位方向
+     */
+    private String jobType;
+
+    /**
+     * 状态（UNSOLVED-未解决，ATTEMPTED-尝试过，SOLVED-已解决）
+     */
+    private String status;
 
     /**
      * 难度
@@ -17,19 +27,14 @@ public class ProblemQueryRequest extends PageRequest {
     private String difficulty;
 
     /**
-     * 标签
+     * 标签（多个标签用逗号分隔）
      */
-    private String tag;
+    private String tags;
 
     /**
      * 题目类型
      */
     private String type;
-
-    /**
-     * 岗位类型
-     */
-    private String jobType;
 
     /**
      * 创建者id
