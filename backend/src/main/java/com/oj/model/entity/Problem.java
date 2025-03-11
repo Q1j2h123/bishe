@@ -73,7 +73,7 @@ public class Problem {
      * 是否删除
      */
     @TableField("isDelete")
-    @TableLogic
+//    @TableLogic
     private Integer isDelete;
 
     /**
@@ -88,10 +88,10 @@ public class Problem {
     @TableField("updateTime")
     private LocalDateTime updateTime;
 
-    /**
-     * 每日一题日期（格式：yyyy-MM-dd）
-     */
-    private String dailyDate;
+//    /**
+//     * 每日一题日期（格式：yyyy-MM-dd）
+//     */
+//    private String dailyDate;
 }
  
 

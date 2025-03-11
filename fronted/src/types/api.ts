@@ -19,6 +19,14 @@ export interface LoginResponse {
   userProfile: string
   userRole: string
   createTime: string
+  token: string
+}
+
+export interface RegisterParams {
+  userAccount: string
+  userPassword: string
+  checkPassword: string
+  userName: string
 }
 
 export interface UserInfo {

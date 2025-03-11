@@ -59,6 +59,11 @@ public class ProblemVO implements Serializable {
     @ApiModelProperty(value = "标准答案（仅创建者可见）")
     private Map<String, String> standardSolution;
 
+    /**
+     * 状态（UNSOLVED-未解决，ATTEMPTED-尝试过，SOLVED-已解决）
+     */
+    private String status;
+
     private static final long serialVersionUID = 1L;
 
     /**

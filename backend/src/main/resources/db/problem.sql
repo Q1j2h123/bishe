@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS `judge_problem` (
     FOREIGN KEY (`id`) REFERENCES `problem` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='判断题表';
 
-CREATE TABLE IF NOT EXISTS `programming_problem` (
+CREATE TABLE IF NOT EXISTS `program_problem` (
                                                      `id` bigint NOT NULL COMMENT '关联problem表的id',
                                                      `functionName` varchar(64) NOT NULL COMMENT '函数名称',
                                                      `paramTypes` varchar(512) NOT NULL COMMENT '参数类型，JSON格式，如：["int[]", "int"]',
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS `submission` (
     `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
     `userId` bigint NOT NULL COMMENT '用户id',
     `problemId` bigint NOT NULL COMMENT '题目id',
-    `type` varchar(32) NOT NULL COMMENT '提交类型：PROGRAMMING/CHOICE/JUDGE',
+    `type` varchar(32) NOT NULL COMMENT '提交类型：program/CHOICE/JUDGE',
     `submissionTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '提交时间',
     `createTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updateTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS `submission` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='提交记录基础表';
 
 -- 编程题提交记录扩展表
-CREATE TABLE IF NOT EXISTS `programming_submission` (
+CREATE TABLE IF NOT EXISTS `program_submission` (
     `submissionId` bigint NOT NULL COMMENT '关联submission表的id',
     `language` varchar(32) NOT NULL COMMENT '编程语言',
     `code` text NOT NULL COMMENT '代码',
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS `choice_judge_submission` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='选择判断题提交详情';
 
 
-ALTER TABLE `programming_problem`
+ALTER TABLE `program_problem`
 ADD COLUMN `standardSolution` json COMMENT '各语言的标准答案，JSON格式，如：{"java": "public class Solution {...}", "python": "class Solution:..."}';
 ALTER TABLE `problem`
-ADD COLUMN `status` json COMMENT '状态（UNSOLVED-未解决，ATTEMPTED-尝试过，SOLVED-已解决）';
+ADD COLUMN `status` varchar(255) COMMENT '状态（UNSOLVED-未解决，ATTEMPTED-尝试过，SOLVED-已解决）';

@@ -10,6 +10,7 @@ import com.oj.mapper.UserMapper;
 import com.oj.model.entity.User;
 import com.oj.model.dto.UserDTO;
 import com.oj.model.vo.UserVO;
+import com.oj.service.TokenBlacklistService;
 import com.oj.service.UserService;
 import com.oj.utils.JwtUtils;
 import com.oj.utils.PasswordUtils;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,6 +41,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Resource
     private UserMapper userMapper;
+
+    @Resource
+    private TokenBlacklistService tokenBlacklistService;
 
     @Override
     public long userRegister(String userAccount, String userPassword, String checkPassword, String userName) {
@@ -70,7 +75,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         user.setUserPassword(encryptPassword);
         user.setUserName(userName);
         // 设置为管理员角色
-        user.setUserRole("admin");
+//        user.setUserRole("admin");
+        // 设置创建时间和更新时间
+        user.setCreateTime(LocalDateTime.now());
+        user.setUpdateTime(LocalDateTime.now());
         boolean saveResult = this.save(user);
         if (!saveResult) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，数据库错误");
@@ -189,8 +197,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        // 移除登录态
-        request.getSession().removeAttribute(USER_LOGIN_STATE);
+        
+        // 获取请求头中的token
+        String header = request.getHeader("Authorization");
+        if (StringUtils.isNotBlank(header) && header.startsWith("Bearer ")) {
+            String token = header.substring(7).trim();
+            // 将token加入黑名单
+            tokenBlacklistService.addToBlacklist(token);
+        }
+        
+        // 清除用户上下文信息
+        UserContext.clear();
         return true;
     }
 
@@ -199,8 +216,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        // 获取当前登录用户
-        User user = (User) request.getSession().getAttribute(USER_LOGIN_STATE);
+        // 从UserContext获取当前登录用户，而不是从Session
+        User user = UserContext.getUser();
         if (user == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }

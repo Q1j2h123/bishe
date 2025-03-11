@@ -4,6 +4,7 @@ import com.oj.common.ErrorCode;
 import com.oj.common.UserContext;
 import com.oj.exception.BusinessException;
 import com.oj.model.entity.User;
+import com.oj.service.TokenBlacklistService;
 import com.oj.service.UserService;
 import com.oj.utils.JwtUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,9 @@ public class LoginInterceptor implements HandlerInterceptor {
 
     @Resource
     private UserService userService;
+    
+    @Resource
+    private TokenBlacklistService tokenBlacklistService;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -50,6 +54,13 @@ public class LoginInterceptor implements HandlerInterceptor {
             String token = header.substring(TOKEN_PREFIX.length()).trim();
             if (!StringUtils.hasText(token)) {
                 log.error("认证失败: 令牌为空");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return false;
+            }
+            
+            // 检查令牌是否在黑名单中
+            if (tokenBlacklistService.isBlacklisted(token)) {
+                log.error("认证失败: 令牌已被注销");
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 return false;
             }

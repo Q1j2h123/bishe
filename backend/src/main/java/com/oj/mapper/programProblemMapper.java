@@ -1,9 +1,9 @@
 package com.oj.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.oj.model.entity.ProgrammingProblem;
+import com.oj.model.entity.programProblem;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface ProgrammingProblemMapper extends BaseMapper<ProgrammingProblem> {
+public interface programProblemMapper extends BaseMapper<programProblem> {
 } 

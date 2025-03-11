@@ -1,294 +1,333 @@
-import request from '../utils/request'
+import request from '@/utils/request'
+import type { BaseResponse } from '@/types/response'
 
-export interface Problem {
-  id: number
-  title: string
-  content: string
-  type: 'CHOICE' | 'JUDGE' | 'PROGRAM'
-  jobType: 'FRONTEND' | 'BACKEND' | 'ALGORITHM'
-  tags: string
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD'
-  acceptRate: string
-  submissionCount: number
-  status: 'SOLVED' | 'ATTEMPTED' | 'UNSOLVED'
-  createTime: string
-  updateTime: string
-  // 选择题选项
-  options?: Array<{
-    key: string
-    content: string
-  }>
-  // 编程题示例
-  samples?: Array<{
-    input: string
-    output: string
-  }>
+
+// 基础问题类型
+export interface BaseProblem {
+  id?: number;
+  title: string;
+  content: string;
+  difficulty: string;
+  tags: string[];
+  type: 'CHOICE' | 'JUDGE' | 'PROGRAM';
+  createTime?: string;
+  updateTime?: string;
+  userId?: number;
+  userName?: string;
 }
 
-export interface ProblemListResponse {
-  records: Problem[]
-  total: number
+// 选择题选项
+export interface ChoiceOption {
+  id?: number;
+  content: string;
+  isCorrect: boolean;
 }
 
-export interface ProblemQueryParams {
-  page: number
-  pageSize: number
-  category?: string
-  search?: string
-  sortBy?: string
-  difficulty?: string
-  type?: string
-  jobType?: string
+// 判断题
+export interface JudgeProblem extends BaseProblem {
+  answer: boolean;
 }
 
-export interface Submission {
-  id: number
-  userId: number
-  problemId: number
-  problemTitle: string
-  language: string
-  code: string
-  status: 'ACCEPTED' | 'WRONG_ANSWER' | 'TIME_LIMIT_EXCEEDED' | 'MEMORY_LIMIT_EXCEEDED' | 'RUNTIME_ERROR' | 'COMPILE_ERROR'
-  submitTime: string
-  executeTime?: number
-  memoryUsage?: number
+// 选择题
+export interface ChoiceProblem extends BaseProblem {
+  options: ChoiceOption[];
 }
 
-export interface UserStats {
-  solvedCount: number
-  submissionCount: number
-  acceptRate: number
+// 编程题
+export interface ProgramProblem extends BaseProblem {
+
+  testCases: Array<{
+    input: string;
+    output: string;
+  }>;
 }
 
-export interface Category {
-  id: number
-  name: string
-  icon?: string
-  description?: string
-  problemCount?: number
-  isHot?: boolean
-  isRecommended?: boolean
-  children?: Category[]
+// 题目展示对象
+export interface ProblemVO extends BaseProblem {
+  // 根据题目类型可能包含不同字段
+  answer?: boolean;
+  options?: ChoiceOption[];
+  testCases: Array<{
+    input: string;
+    output: string;
+  }>;
+  acceptCount?: number;
+  submitCount?: number;
 }
 
-export interface CodeRunResult {
-  status: string
-  success: boolean
-  message: string
-  output?: string
-  error?: string
-  executeTime?: number
-  memoryUsage?: number
+// 题目查询请求
+export interface ProblemQueryRequest {
+  current?: number;
+  pageSize?: number;
+  searchText?: string;
+  id?: number;
+  title?: string;
+  type?: string;
+  difficulty?: string;
+  jobType?: string;
+  userId?: number;
+  tags?: string[];
+  status?: string;
 }
 
-// 示例题目数据
-const mockProblems: Problem[] = [
-  {
-    id: 1,
-    title: '选择正确的 JavaScript 变量声明',
-    content: `
-在 JavaScript 中，以下哪个变量声明是正确的？
+// 选择题添加请求
+export interface ChoiceProblemAddRequest {
+  title: string;
+  content: string;
+  difficulty: string;
+  tags: string[];
+  options: ChoiceOption[];
+  jobType: string;
+  analysis: string; // 题目解析
+  answer: string; // 正确答案
+  type: 'CHOICE'; // 题目类型
+}
 
-请选择正确的选项。
-    `,
-    type: 'CHOICE',
-    jobType: 'FRONTEND',
-    tags: 'javascript,基础',
-    difficulty: 'EASY',
-    acceptRate: '85',
-    submissionCount: 1000,
-    status: 'UNSOLVED',
-    createTime: '2024-03-05T10:00:00Z',
-    updateTime: '2024-03-05T10:00:00Z',
-    options: [
-      { key: 'A', content: 'var 1name = "John"' },
-      { key: 'B', content: 'let @name = "John"' },
-      { key: 'C', content: 'const userName = "John"' },
-      { key: 'D', content: 'variable name = "John"' }
-    ]
-  },
-  {
-    id: 2,
-    title: '判断 HTTP 状态码说法是否正确',
-    content: `
-HTTP 状态码 404 表示"服务器内部错误"。
+// 判断题添加请求
+export interface JudgeProblemAddRequest {
+  title: string;
+  content: string;
+  difficulty: string;
+  tags: string[];
+  answer: boolean;
+  jobType: string;
+  analysis: string; // 题目解析
+  type: 'JUDGE'; // 题目类型
+}
 
-请判断这个说法是否正确。
-    `,
-    type: 'JUDGE',
-    jobType: 'FRONTEND',
-    tags: 'http,网络',
-    difficulty: 'EASY',
-    acceptRate: '75',
-    submissionCount: 800,
-    status: 'UNSOLVED',
-    createTime: '2024-03-05T11:00:00Z',
-    updateTime: '2024-03-05T11:00:00Z'
-  },
-  {
-    id: 3,
-    title: '实现数组去重函数',
-    content: `
-请实现一个函数 \`removeDuplicates\`，该函数接收一个数组作为参数，返回一个新数组，其中包含原数组中的所有不重复元素。
+// 编程题添加请求
+export interface ProgramProblemAddRequest {
+  title: string;
+  content: string;
+  difficulty: string;
+  tags: string[];
+  testCases: Array<{ input: string; output: string; }>;
+  jobType: string;
+  analysis: string; // 题目解析
+  type: 'PROGRAM'; // 题目类型
+  functionName: string; // 函数名称
+  paramTypes: string[]; // 参数类型列表
+  returnType: string; // 返回值类型
+  templates: Record<string, string>; // 代码模板
+  standardSolution: Record<string, string>; // 标准答案
+  timeLimit?: number; // 时间限制（毫秒）
+  memoryLimit?: number; // 内存限制（MB）
+}
 
-要求：
-1. 保持元素原有的顺序
-2. 不修改原数组
-3. 考虑各种数据类型（数字、字符串、布尔值等）
+// 更新请求
+export interface ChoiceProblemUpdateRequest {
+  id: number;
+  title?: string;
+  content?: string;
+  difficulty?: string;
+  tags?: string[];
+  options?: ChoiceOption[];
+  jobType?: string;
+  analysis?: string; // 题目解析
+  answer?: string; // 正确答案
+  type?: 'CHOICE'; // 题目类型
+}
 
-示例：
-\`\`\`javascript
-输入：[1, 2, 2, 3, '3', true, true, { a: 1 }, { a: 1 }]
-输出：[1, 2, 3, '3', true, { a: 1 }, { a: 1 }]
-\`\`\`
+export interface JudgeProblemUpdateRequest {
+  id: number;
+  title?: string;
+  content?: string;
+  difficulty?: string;
+  tags?: string[];
+  answer?: boolean;
+  jobType?: string;
+  analysis?: string; // 题目解析
+  type?: 'JUDGE'; // 题目类型
+}
 
-注意：对于对象类型，需要考虑引用相等。
-    `,
-    type: 'PROGRAM',
-    jobType: 'FRONTEND',
-    tags: 'javascript,数组,算法',
-    difficulty: 'MEDIUM',
-    acceptRate: '45',
-    submissionCount: 500,
-    status: 'UNSOLVED',
-    createTime: '2024-03-05T12:00:00Z',
-    updateTime: '2024-03-05T12:00:00Z',
-    samples: [
-      {
-        input: '[1, 2, 2, 3, 3, 4]',
-        output: '[1, 2, 3, 4]'
-      },
-      {
-        input: '["a", "b", "a", "c"]',
-        output: '["a", "b", "c"]'
-      }
-    ]
-  }
-]
+export interface ProgramProblemUpdateRequest {
+  id: number;
+  title?: string;
+  content?: string;
+  difficulty?: string;
+  tags?: string[];
+  testCases?: Array<{ input: string; output: string; }>;
+  jobType?: string;
+  analysis?: string; // 题目解析
+  type?: 'PROGRAM'; // 题目类型
+  functionName?: string; // 函数名称
+  paramTypes?: string[]; // 参数类型列表
+  returnType?: string; // 返回值类型
+  templates?: Record<string, string>; // 代码模板
+  standardSolution?: Record<string, string>; // 标准答案
+  timeLimit?: number; // 时间限制（毫秒）
+  memoryLimit?: number; // 内存限制（MB）
+}
 
-// 修改 API 实现，使用模拟数据
+// 问题API接口
 export const problemApi = {
   // 获取题目列表
-  async getProblems(params: ProblemQueryParams) {
-    // 模拟分页
-    const start = (params.page - 1) * params.pageSize
-    const end = start + params.pageSize
-    const filteredProblems = mockProblems
-      .filter(p => {
-        if (params.difficulty && p.difficulty !== params.difficulty) return false
-        if (params.type && p.type !== params.type) return false
-        if (params.jobType && p.jobType !== params.jobType) return false
-        if (params.search && !p.title.toLowerCase().includes(params.search.toLowerCase())) return false
-        return true
-      })
+  getProblemList(params: ProblemQueryRequest): Promise<BaseResponse<{records: ProblemVO[], total: number}>> {
+    // 复制参数，避免修改原始对象
+    const queryParams: Record<string, any> = { ...params };
     
-    return {
-      records: filteredProblems.slice(start, end),
-      total: filteredProblems.length
+    // 特殊处理标签参数，将数组转为字符串
+    if (queryParams.tags && Array.isArray(queryParams.tags) && queryParams.tags.length > 0) {
+      queryParams.tagList = queryParams.tags.join(',');
+      delete queryParams.tags; // 删除原始tags参数
     }
+    
+    // 处理难度参数 - 将中文难度转换为后端期望的英文大写格式
+    if (queryParams.difficulty) {
+      const difficultyMap: Record<string, string> = {
+        '简单': 'EASY',
+        '中等': 'MEDIUM',
+        '困难': 'HARD'
+      };
+      
+      if (difficultyMap[queryParams.difficulty]) {
+        queryParams.difficulty = difficultyMap[queryParams.difficulty];
+      }
+    }
+    
+    return request.get('problem/list/page', { params: queryParams });
   },
-
+  
+  // 获取我的题目
+  getMyProblemList(params: ProblemQueryRequest): Promise<BaseResponse<{records: ProblemVO[], total: number}>> {
+    return request.post('problem/list/my', params);
+  },
+  
+  // 获取题目基本信息
+  getProblemById(id: number): Promise<BaseResponse<ProblemVO>> {
+    return request.get(`problem/get/${id}`);
+  },
+  
   // 获取题目详情
-  async getProblemDetail(id: number) {
-    const problem = mockProblems.find(p => p.id === id)
-    if (!problem) {
-      throw new Error('题目不存在')
-    }
-    return problem
+  getProblemDetail(id: number): Promise<BaseResponse<ProblemVO>> {
+    return request.get(`problem/detail/${id}`);
   },
-
-  // 获取用户统计信息
-  async getUserStats() {
-    return {
-      solvedCount: 10,
-      submissionCount: 20,
-      acceptRate: 50
-    }
+  
+  // 添加选择题
+  addChoiceProblem(data: ChoiceProblemAddRequest): Promise<BaseResponse<number>> {
+    // 直接使用JSON格式
+    return request.post('problem/choice/add', data);
   },
-
-  // 获取最近提交记录
-  async getRecentSubmissions() {
-    return [
-      {
-        id: 1,
-        userId: 1,
-        problemId: 1,
-        problemTitle: '选择正确的 JavaScript 变量声明',
-        language: 'javascript',
-        code: '',
-        status: 'ACCEPTED' as const,
-        submitTime: '2024-03-05T14:00:00Z',
-        executeTime: 100,
-        memoryUsage: 1024
+  
+  // 添加判断题
+  addJudgeProblem(data: JudgeProblemAddRequest): Promise<BaseResponse<number>> {
+    return request.post('problem/judge/add', data);
+  },
+  
+  // 添加编程题
+  addProgramProblem(data: ProgramProblemAddRequest): Promise<BaseResponse<number>> {
+    console.log('开始处理编程题数据...')
+    
+    try {
+      // 创建简化的请求对象，避免使用Proxy对象
+      const requestData = {
+        title: data.title,
+        content: data.content,
+        difficulty: data.difficulty,
+        tags: Array.isArray(data.tags) ? [...data.tags] : [],
+        jobType: data.jobType || '',
+        analysis: data.analysis || '',
+        functionName: data.functionName,
+        paramTypes: Array.isArray(data.paramTypes) ? [...data.paramTypes] : [],
+        returnType: data.returnType,
+        testCases: Array.isArray(data.testCases) ? data.testCases.map(tc => ({
+          input: tc.input || '',
+          output: tc.output || ''
+        })) : [],
+        templates: data.templates ? {...data.templates} : {},
+        standardSolution: data.standardSolution ? {...data.standardSolution} : {},
+        timeLimit: data.timeLimit || 1000,
+        memoryLimit: data.memoryLimit || 256,
+        type: 'PROGRAM' as const
+      };
+      
+      // 打印JSON格式的数据大小
+      const jsonString = JSON.stringify(requestData);
+      const sizeInKB = Math.round(jsonString.length / 1024);
+      console.log('请求数据大小:', sizeInKB, 'KB');
+      
+      // 检查请求数据大小是否合理
+      if (sizeInKB > 5000) {
+        return Promise.reject(new Error(`请求数据过大(${sizeInKB}KB)，超过服务器限制，请减少代码模板或测试用例的大小`));
       }
-    ]
-  },
-
-  // 运行代码
-  async runCode(problemId: number, language: string, code: string) {
-    // 模拟运行结果
-    return {
-      status: 'SUCCESS',
-      success: true,
-      message: '代码运行成功',
-      output: '测试用例通过',
-      executeTime: 100,
-      memoryUsage: 1024
-    }
-  },
-
-  // 提交代码
-  async submitCode(problemId: number, language: string, code: string) {
-    // 模拟提交结果
-    return {
-      id: Date.now(),
-      userId: 1,
-      problemId,
-      problemTitle: mockProblems.find(p => p.id === problemId)?.title || '',
-      language,
-      code,
-      status: 'ACCEPTED' as const,
-      submitTime: new Date().toISOString(),
-      executeTime: 100,
-      memoryUsage: 1024
-    }
-  },
-
-  // 获取题目的提交记录
-  async getProblemSubmissions(problemId: number) {
-    return [
-      {
-        id: 1,
-        userId: 1,
-        problemId,
-        problemTitle: mockProblems.find(p => p.id === problemId)?.title || '',
-        language: 'javascript',
-        code: '',
-        status: 'ACCEPTED' as const,
-        submitTime: '2024-03-05T14:00:00Z',
-        executeTime: 100,
-        memoryUsage: 1024
+      
+      // 显示警告如果数据较大
+      if (sizeInKB > 1000) {
+        console.warn(`请求数据较大(${sizeInKB}KB)，可能需要较长处理时间`);
       }
-    ]
+      
+      // 使用简单直接的请求方式，不使用复杂的Promise.race
+      return request.post('problem/program/add', requestData, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 60000 // 60秒超时
+      });
+    } catch (error) {
+      console.error('处理请求数据时出错:', error);
+      return Promise.reject(error);
+    }
   },
-
+  
+  // 更新选择题
+  updateChoiceProblem(data: ChoiceProblemUpdateRequest): Promise<BaseResponse<boolean>> {
+    return request.post('problem/choice/update', data);
+  },
+  
+  // 更新判断题
+  updateJudgeProblem(data: JudgeProblemUpdateRequest): Promise<BaseResponse<boolean>> {
+    return request.post('problem/judge/update', data);
+  },
+  
+  // 更新编程题
+  updateProgramProblem(data: ProgramProblemUpdateRequest): Promise<BaseResponse<boolean>> {
+    return request.post('problem/program/update', data);
+  },
+  
+  // 删除选择题
+  deleteChoiceProblem(id: number): Promise<BaseResponse<boolean>> {
+    return request.post('problem/choice/delete', null, { params: { id } });
+  },
+  
+  // 删除判断题
+  deleteJudgeProblem(id: number): Promise<BaseResponse<boolean>> {
+    return request.post('problem/judge/delete', null, { params: { id } });
+  },
+  
+  // 删除编程题
+  deleteProgramProblem(id: number): Promise<BaseResponse<boolean>> {
+    return request.post('problem/program/delete', null, { params: { id } });
+  },
+  
+  // 批量获取题目
+  getProblemsByIds(problemIds: number[]): Promise<BaseResponse<ProblemVO[]>> {
+    return request.post('problem/batch', problemIds);
+  },
+  
+  // 获取用户的题目
+  getProblemsByUserId(userId: number): Promise<BaseResponse<ProblemVO[]>> {
+    return request.get(`problem/user/${userId}`);
+  },
+  
+  // 搜索题目
+  searchProblems(keyword: string): Promise<BaseResponse<ProblemVO[]>> {
+    return request.get('problem/search', { params: { keyword } });
+  },
+  
   // 获取随机题目
-  async getRandomProblem(): Promise<Problem> {
-    const randomIndex = Math.floor(Math.random() * mockProblems.length)
-    return mockProblems[randomIndex]
+  getRandomProblem(): Promise<BaseResponse<ProblemVO>> {
+    return request.get('problem/random');
   },
-
-  // 获取题库列表
-  async getCategories(): Promise<Category[]> {
-    return [
-      {
-        id: 1,
-        name: '前端开发',
-        icon: '🌐',
-        description: '前端开发相关题目',
-        problemCount: 100,
-        isHot: true
-      }
-    ]
+  
+  // 获取每日一题
+  getDailyProblem(): Promise<BaseResponse<ProblemVO>> {
+    return request.get('problem/daily');
+  },
+  
+  // 更新题目状态
+  updateProblemStatus(problemId: number, status: string): Promise<BaseResponse<boolean>> {
+    return request.post('problem/status/update', null, { 
+      params: { problemId, status } 
+    });
   }
-} 
+};

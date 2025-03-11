@@ -24,7 +24,7 @@ public class QuestionBank {
     private Integer problemCount;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
-    @TableLogic
+//    @TableLogic
     private Integer isDelete;
 
 

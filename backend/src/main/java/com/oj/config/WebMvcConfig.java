@@ -56,9 +56,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                     // 用户相关
                     "/api/user/login",
                     "/api/user/register",
-                    // 题目相关（仅允许查看）
-                    "/api/problem/list",
-                    "/api/problem/get/**"
+                    // 题目相关（仅允许查看公开列表）
+                    "/api/problem/list"
                 );
     }
 } 

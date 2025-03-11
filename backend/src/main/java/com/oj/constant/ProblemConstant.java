@@ -35,4 +35,11 @@ public interface ProblemConstant {
      * 选择题选项最大数量
      */
     int MAX_CHOICE_OPTIONS = 26;
+
+    /**
+     * 题目状态
+     */
+    String PROBLEM_STATUS_UNSOLVED = "UNSOLVED";
+    String PROBLEM_STATUS_ATTEMPTED = "ATTEMPTED";
+    String PROBLEM_STATUS_SOLVED = "SOLVED";
 } 

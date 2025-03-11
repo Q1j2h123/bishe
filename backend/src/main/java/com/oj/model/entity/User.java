@@ -5,14 +5,13 @@ import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.util.Date;
-
+import java.time.LocalDateTime;
 
 @Data
 @TableName("user") // 映射到数据库中的 user 表
 public class User implements Serializable {
     @TableId(type = IdType.AUTO) // 主键自增
-    @TableField("id")  // 指定数据库字段名
+     // 指定数据库字段名
     private Long id;
     
     @TableField("userAccount")  // 指定数据库字段名
@@ -31,12 +30,12 @@ public class User implements Serializable {
     private String userRole;
 
     @TableField("isDelete")
-    @TableLogic
+//    @TableLogic
     private Integer isDelete;
 
     @TableField(value = "createTime", fill = FieldFill.INSERT) // 自动填充
-    private Date createTime;
+    private LocalDateTime createTime;
 
     @TableField(value = "updateTime", fill = FieldFill.INSERT_UPDATE) // 自动填充
-    private Date updateTime;
+    private LocalDateTime updateTime;
 }

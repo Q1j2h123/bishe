@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 @Data
-@TableName("programming_problem")
-public class ProgrammingProblem {
+@TableName("program_problem")
+public class programProblem {
     /**
      * 关联problem表的id
      */

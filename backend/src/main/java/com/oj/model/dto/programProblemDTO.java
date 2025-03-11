@@ -8,7 +8,7 @@ import java.util.Map;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class ProgrammingProblemDTO extends ProblemDTO {
+public class programProblemDTO extends ProblemDTO {
     /**
      * 函数名
      */
