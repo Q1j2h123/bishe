@@ -1,144 +1,77 @@
 <template>
   <div class="choice-problem-container">
-    <el-row :gutter="20">
-      <!-- 左侧：题目详情区域 -->
-      <el-col :span="16">
-        <el-card class="problem-card">
-          <template #header>
-            <div class="problem-header">
-              <div class="problem-title">
-                <h2>{{ problem?.title || '加载中...' }}</h2>
-                <div class="problem-meta">
-                  <el-tag type="success" size="small">选择题</el-tag>
-                  <el-tag :type="getDifficultyType(problem?.difficulty)" size="small" class="ml-2">{{ problem?.difficulty || '未知' }}</el-tag>
-                  <span class="problem-stats">通过率: {{ problem?.acceptCount && problem?.submitCount ? Math.round((problem.acceptCount / problem.submitCount) * 100) + '%' : '0%' }}</span>
-                </div>
-              </div>
-            </div>
-          </template>
-          
-          <!-- 题目内容 -->
-          <div class="problem-content">
-            <div v-if="problem?.content" class="markdown-body" v-html="renderMarkdown(problem.content)"></div>
-            <div v-else class="loading-content">
-              <el-skeleton :rows="5" animated />
+    <!-- 题目详情区域 -->
+    <el-card class="problem-card">
+      <template #header>
+        <div class="problem-header">
+          <div class="problem-title">
+            <h2>{{ problem?.title || '加载中...' }}</h2>
+            <div class="problem-meta">
+              <el-tag type="success" size="small">选择题</el-tag>
+              <el-tag :type="getDifficultyType(problem?.difficulty)" size="small" class="ml-2">{{ problem?.difficulty || '未知' }}</el-tag>
+              <span class="problem-stats">通过率: {{ problem?.acceptCount && problem?.submitCount ? Math.round((problem.acceptCount / problem.submitCount) * 100) + '%' : '0%' }}</span>
             </div>
           </div>
-          
-          <!-- 选项列表和提交区域 (合并) -->
-          <div class="choice-options">
-            <h3>请选择答案：</h3>
-            <!-- 选项列表 -->
-            <div v-if="problem?.options && Array.isArray(problem.options) && problem.options.length > 0">
-              <el-checkbox-group v-model="selectedAnswers">
-                <div v-for="(option, index) in problem.options" :key="index" class="choice-option">
-                  <el-checkbox :label="option.key || String.fromCharCode(65 + index)" class="option-checkbox">
-                    <div class="option-label">{{ option.key || String.fromCharCode(65 + index) }}</div>
-                    <div class="option-content">{{ option.content || '选项内容缺失' }}</div>
-                  </el-checkbox>
-                </div>
-              </el-checkbox-group>
-              
-              <div class="submit-btn">
-                <el-button type="primary" @click="submitAnswer" :disabled="!problem?.id">提交答案</el-button>
-              </div>
-            </div>
-            <!-- 选项加载状态 -->
-            <div v-else-if="problem && problem.type === 'CHOICE'">
-              <p class="option-warning">当前题目选项加载失败，请刷新页面重试或联系管理员。</p>
-              <div class="submit-btn">
-                <el-button type="primary" @click="loadProblem(Array.isArray(route.params.id) ? route.params.id[0] : route.params.id)">重新加载</el-button>
-              </div>
-            </div>
-            <!-- 加载中状态 -->
-            <div v-else>
-              <el-skeleton :rows="4" animated />
-            </div>
-          </div>
-          
-          <!-- 答案与解析 (提交后显示) -->
-          <div class="answer-analysis" v-if="showAnalysis">
-            <div class="divider"></div>
-            <h3>正确答案与解析</h3>
-            <div class="correct-answer">
-              <strong>正确答案：</strong> {{ correctAnswerDisplay }}
-            </div>
-            <div class="analysis-content markdown-body" v-html="renderMarkdown(analysisContent)"></div>
-          </div>
-        </el-card>
-      </el-col>
+        </div>
+      </template>
       
-      <!-- 右侧：提交记录和推荐题目 -->
-      <el-col :span="8">
-        <!-- 右上：提交记录 -->
-        <el-card class="submission-history-card">
-          <template #header>
-            <div class="card-header">
-              <h3>我的提交历史</h3>
-              <el-button type="primary" size="small" icon="el-icon-refresh" circle @click="loadSubmissionHistory" :loading="isLoadingSubmissions"></el-button>
-            </div>
-          </template>
-          <div v-if="isLoadingSubmissions" class="loading-content">
-            <el-skeleton :rows="3" animated />
-          </div>
-          <div v-else-if="submissionHistory.length > 0">
-            <el-table :data="submissionHistory" style="width: 100%" size="small">
-              <el-table-column label="提交时间" width="120">
-                <template #default="scope">
-                  {{ formatDate(scope.row.createTime) }}
-                </template>
-              </el-table-column>
-              <el-table-column label="状态" width="70">
-                <template #default="scope">
-                  <el-tag :type="scope.row.status === 'ACCEPTED' ? 'success' : 'danger'" size="small">
-                    {{ scope.row.status === 'ACCEPTED' ? '正确' : '错误' }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="提交答案">
-                <template #default="scope">
-                  {{ scope.row.answer }}
-                </template>
-              </el-table-column>
-            </el-table>
-          </div>
-          <el-empty v-else description="暂无提交记录，成功提交后即可查看历史" />
-        </el-card>
+      <!-- 题目内容 -->
+      <div class="problem-content">
+        <div v-if="problem?.content" class="markdown-body" v-html="renderMarkdown(problem.content)"></div>
+        <div v-else class="loading-content">
+          <el-skeleton :rows="5" animated />
+        </div>
+      </div>
+      
+      <!-- 选项列表和提交区域 -->
+      <div class="choice-options">
+        <h3>请选择答案：</h3>
         
-        <!-- 右下：推荐题目 -->
-        <el-card class="related-problems-card">
-          <template #header>
-            <div class="card-header">
-              <h3>相关题目推荐</h3>
-              <el-button type="primary" size="small" icon="el-icon-refresh" circle @click="loadRelatedProblems" :loading="isLoadingRelated"></el-button>
+        <!-- 选项列表 - 有选项时显示 -->
+        <div v-if="problem?.options && Array.isArray(problem.options) && problem.options.length > 0">
+          <el-checkbox-group v-model="selectedAnswers">
+            <div v-for="(option, index) in problem.options" :key="index" class="choice-option">
+              <el-checkbox :label="getOptionKey(option, index)" class="option-checkbox">
+                <div class="option-label">{{ getOptionKey(option, index) }}</div>
+                <div class="option-content">{{ option.content || '选项内容缺失' }}</div>
+              </el-checkbox>
             </div>
-          </template>
-          <div v-if="isLoadingRelated" class="loading-content">
-            <el-skeleton :rows="3" animated />
+          </el-checkbox-group>
+          
+          <div class="submit-btn">
+            <el-button type="primary" @click="submitAnswer" :disabled="!problem?.id">提交答案</el-button>
           </div>
-          <div class="related-problems" v-else-if="relatedProblems.length > 0">
-            <el-table :data="relatedProblems" style="width: 100%" size="small">
-              <el-table-column label="题号" width="60">
-                <template #default="scope">
-                  {{ scope.row.id }}
-                </template>
-              </el-table-column>
-              <el-table-column label="题目">
-                <template #default="scope">
-                  <router-link :to="`/problem/${scope.row.id}`">{{ scope.row.title }}</router-link>
-                </template>
-              </el-table-column>
-              <el-table-column label="难度" width="70">
-                <template #default="scope">
-                  <el-tag :type="getDifficultyType(scope.row.difficulty)" size="small">{{ scope.row.difficulty }}</el-tag>
-                </template>
-              </el-table-column>
-            </el-table>
-          </div>
-          <el-empty v-else description="暂无相关题目推荐，可能原因：新题目或暂无相似标签的题目" />
-        </el-card>
-      </el-col>
-    </el-row>
+        </div>
+        
+        <!-- 选项加载状态 - 无选项时 -->
+        <div v-else-if="problem && problem.type === 'CHOICE'">
+          <el-empty 
+            description="当前题目尚未设置选项，请联系管理员添加选项。" 
+            :image-size="200"
+          >
+            <template #default>
+              <p class="option-warning">无法获取选项数据，请稍后再试</p>
+              <el-button @click="loadProblem(Array.isArray(route.params.id) ? route.params.id[0] : route.params.id)">重新加载</el-button>
+            </template>
+          </el-empty>
+        </div>
+        
+        <!-- 加载中状态 -->
+        <div v-else>
+          <el-skeleton :rows="4" animated />
+        </div>
+      </div>
+      
+      <!-- 答案与解析 (提交后显示) -->
+      <div class="answer-analysis" v-if="showAnalysis">
+        <div class="divider"></div>
+        <h3>正确答案与解析</h3>
+        <div class="correct-answer">
+          <strong>正确答案：</strong> {{ correctAnswerDisplay }}
+        </div>
+        <div class="analysis-content markdown-body" v-html="renderMarkdown(analysisContent)"></div>
+      </div>
+    </el-card>
 
     <!-- DEBUG面板 - 开发阶段使用 -->
     <el-card v-if="debug" class="debug-panel">
@@ -187,17 +120,8 @@
   border-radius: 8px;
   margin-bottom: 20px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.submission-history-card {
-  margin-bottom: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.related-problems-card {
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .problem-header {
@@ -340,6 +264,8 @@
   margin-top: 20px;
   background-color: #fef0f0;
   color: #f56c6c;
+  max-width: 900px;
+  margin: 20px auto 0;
 }
 
 .debug-panel pre {
@@ -383,10 +309,10 @@
 </style>
 
 <script setup lang="ts">
-import { ref, onMounted, defineProps, watchEffect, computed } from 'vue'
+import { ref, onMounted, defineProps, watchEffect } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { problemApi, type ProblemVO } from '@/api/problem'
+import { problemApi, type ProblemVO, type ChoiceOption } from '@/api/problem'
 import { submissionApi, type SubmissionVO, type ChoiceSubmitRequest } from '@/api/submission'
 // @ts-ignore
 import MarkdownIt from 'markdown-it'
@@ -402,20 +328,12 @@ const props = defineProps<{
 // 保存原始选项数据用于调试
 const originalOptions = ref<any>(null)
 
-// 前端显示使用的选项格式，与后端完全一致
+// 自定义选项类型，兼容后端返回的不同格式
 interface ProblemOptionDTO {
-  key: string;
+  key?: string;
+  id?: number;
   content: string;
-}
-
-// 定义简化的题目类型用于相关题目
-interface SimpleProblemVO {
-  id: number;
-  title: string;
-  difficulty: string;
-  content?: string;
-  tags?: string[];
-  type?: string;
+  isCorrect?: boolean;
 }
 
 // 扩展自定义的ChoiceProblemVO类型，避免直接扩展ProblemVO导致类型冲突
@@ -437,6 +355,12 @@ interface ChoiceProblemVO {
   userName?: string;
 }
 
+// 获取选项的key值，兼容不同数据格式
+const getOptionKey = (option: ProblemOptionDTO, index: number): string => {
+  if (option.key) return option.key;
+  return String.fromCharCode(65 + index); // 生成A, B, C, D...
+}
+
 // 题目数据
 const problem = ref<ChoiceProblemVO | null>(null)
 // 选中的答案
@@ -451,123 +375,6 @@ const analysisContent = ref<string>('')
 // 路由工具
 const router = useRouter()
 const route = useRoute()
-const relatedProblems = ref<SimpleProblemVO[]>([])
-
-// 提交历史
-const submissionHistory = ref<SubmissionVO[]>([])
-
-// 加载状态
-const isLoadingRelated = ref<boolean>(false);
-const isLoadingSubmissions = ref<boolean>(false);
-
-// 格式化日期
-const formatDate = (dateStr?: string): string => {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-}
-
-// 获取相关题目
-const loadRelatedProblems = async (): Promise<void> => {
-  if (!problem.value?.id) {
-    console.warn('无法加载相关题目: problem.id 不存在')
-    return
-  }
-  
-  // 设置加载状态
-  isLoadingRelated.value = true;
-  
-  try {
-    // API调用获取相关题目
-    console.log('正在加载相关题目, 题目ID:', problem.value.id)
-    
-    // 优化请求参数
-    const requestParams = {
-      pageSize: 5,
-      current: 1
-    };
-    
-    // 仅当tags存在且为数组时才添加到请求参数
-    if (problem.value.tags && Array.isArray(problem.value.tags) && problem.value.tags.length > 0) {
-      // @ts-ignore
-      requestParams.tags = problem.value.tags;
-    }
-    
-    const res = await problemApi.getProblemList(requestParams).catch(err => {
-      console.warn('相关题目API错误:', err.message);
-      // 返回空数据结构
-      return { code: 0, data: { records: [], total: 0 } };
-    });
-    
-    console.log('相关题目API返回:', JSON.stringify(res))
-    
-    if (res.code === 0 && res.data) {
-      // 过滤掉当前题目
-      relatedProblems.value = res.data.records
-        .filter(p => p.id !== problem.value?.id)
-        .slice(0, 5) as SimpleProblemVO[]
-      
-      console.log('已加载相关题目:', relatedProblems.value.length)
-      console.log('相关题目数据:', JSON.stringify(relatedProblems.value))
-    } else {
-      console.warn('获取相关题目失败:', (res as any).message || '未知错误')
-      relatedProblems.value = []
-    }
-  } catch (error) {
-    console.error('加载相关题目异常:', error)
-    relatedProblems.value = []
-  } finally {
-    // 无论成功或失败，都重置加载状态
-    isLoadingRelated.value = false;
-  }
-}
-
-// 获取提交历史
-const loadSubmissionHistory = async (): Promise<void> => {
-  if (!problem.value?.id) {
-    console.warn('无法加载提交历史: problem.id 不存在')
-    return
-  }
-  
-  // 设置加载状态
-  isLoadingSubmissions.value = true;
-  
-  try {
-    // 调用实际API获取提交历史
-    console.log('正在加载提交历史, 题目ID:', problem.value.id)
-    
-    // 使用更友好的错误处理
-    const res = await submissionApi.getProblemSubmissionList(problem.value.id, {
-      current: 1,
-      pageSize: 10
-    }).catch(err => {
-      if (err.response && err.response.status === 404) {
-        console.warn(`提交历史API返回404错误，题目ID: ${problem.value?.id}，新题目尚无提交记录`);
-      } else {
-        console.warn(`提交历史API错误: ${err.message}，题目ID: ${problem.value?.id}`);
-      }
-      // 返回空数据结构
-      return { code: 0, data: { records: [], total: 0 } };
-    });
-    
-    console.log('提交历史API返回:', JSON.stringify(res))
-    
-    if (res.code === 0 && res.data) {
-      submissionHistory.value = res.data.records
-      console.log('已加载提交历史:', submissionHistory.value.length)
-      console.log('提交历史数据:', JSON.stringify(submissionHistory.value))
-    } else {
-      console.warn('获取提交历史失败:', (res as any).message || '未知错误')
-      submissionHistory.value = []
-    }
-  } catch (error) {
-    console.error('加载提交历史异常:', error)
-    submissionHistory.value = []
-  } finally {
-    // 无论成功或失败，都重置加载状态
-    isLoadingSubmissions.value = false;
-  }
-}
 
 // Markdown 渲染器
 const md = new MarkdownIt()
@@ -638,9 +445,6 @@ const submitAnswer = async (): Promise<void> => {
       if (problem.value?.analysis) {
         analysisContent.value = problem.value.analysis
       }
-      
-      // 重新加载提交历史
-      loadSubmissionHistory()
     } else {
       ElMessage.error(res.message || '提交失败')
     }
@@ -679,102 +483,29 @@ const loadProblem = async (id?: number | string): Promise<void> => {
       console.log('原始选项数据:', JSON.stringify(res.data.options))
       originalOptions.value = res.data.options // 保存原始数据用于调试
       
-      // 确保数据符合预期格式
-      if (res.data.type !== 'CHOICE') {
-        console.warn('当前题目不是选择题类型:', res.data.type)
-        ElMessage.warning('当前题目不是选择题类型')
+      // 修改判断逻辑，同时检查type和options
+      if (res.data.type !== 'CHOICE' && (!res.data.options || !Array.isArray(res.data.options))) {
+        console.warn('当前题目不是选择题或没有选项数据:', res.data.type)
+        ElMessage.warning('当前题目不是选择题或缺少选项数据')
         router.push(`/problem/${problemId}`)
         return
       }
 
-      // 关键调试信息 - 检查选项数据结构
-      if (res.data.options) {
-        console.log('选项数组类型:', Object.prototype.toString.call(res.data.options))
-        console.log('选项数量:', res.data.options.length)
-        
-        // 检查选项格式和修复数据结构
-        if (res.data.options.length > 0) {
-          console.log('第一个选项:', JSON.stringify(res.data.options[0]))
-          
-          // 检查第一个选项是否有key和content字段
-          const firstOption = res.data.options[0] as any;
-          console.log('第一个选项的key:', firstOption.key)
-          console.log('第一个选项的content:', firstOption.content)
-          
-          // 如果选项没有key字段，尝试修复格式
-          if (firstOption.key === undefined) {
-            console.warn('选项数据格式不正确，尝试修复...')
-            
-            // 可能的情况1: 选项是数组 ["选项1", "选项2", ...]
-            if (typeof firstOption === 'string') {
-              console.log('选项为字符串数组，转换格式')
-              const converted = (res.data.options as unknown as string[]).map((content, index) => ({
-                key: String.fromCharCode(65 + index),
-                content: content
-              }));
-              res.data.options = converted as any;
-            } 
-            // 可能的情况2: 选项是对象但字段名不同 [{ id: 1, content: "选项1"}, ...]
-            else if (firstOption.id !== undefined && firstOption.content !== undefined) {
-              console.log('选项有id而不是key，转换格式')
-              const converted = (res.data.options as unknown as any[]).map((opt) => ({
-                key: String.fromCharCode(65 + (typeof opt.id === 'number' ? opt.id - 1 : 0)),
-                content: opt.content
-              }));
-              res.data.options = converted as any;
-            } 
-            // 可能的情况3: 选项是完全不同的格式
-            else {
-              console.log('选项格式无法识别，创建备选选项')
-              const answerChars = 'ABCD';
-              const tempOptions = [];
-              
-              for (let i = 0; i < 4; i++) {
-                tempOptions.push({
-                  key: answerChars[i],
-                  content: `选项${answerChars[i]}（系统生成）`
-                });
-              }
-              
-              res.data.options = tempOptions as any;
-            }
-            
-            console.log('修复后的选项:', JSON.stringify(res.data.options))
-          }
-        }
-      } else {
-        console.warn('选项数据为空或未定义!')
-        
-        // 如果选项为空但题目类型是选择题，尝试从answer构建选项
-        if (res.data.answer && typeof res.data.answer === 'string') {
-          console.log('尝试从answer构建选项:', res.data.answer)
-          
-          // 将选项A,B,C,D作为备选
-          const answerChars = 'ABCD';
-          const tempOptions = [];
-          
-          for (let i = 0; i < 4; i++) {
-            tempOptions.push({
-              key: answerChars[i],
-              content: `选项${answerChars[i]}（系统生成）`
-            });
-          }
-          
-          res.data.options = tempOptions as any;
-          console.log('构建的备选选项:', JSON.stringify(tempOptions))
-        }
+      // 如果type为null但存在options，视为选择题处理
+      if (!res.data.type && res.data.options && Array.isArray(res.data.options) && res.data.options.length > 0) {
+        console.log('题目type为null但有选项数据，按选择题处理')
       }
 
-      // 简化处理 - 直接使用后端返回的数据
+      // 直接使用后端返回的数据，不做修改
       problem.value = {
         id: res.data.id,
         title: res.data.title,
         content: res.data.content,
         difficulty: res.data.difficulty,
         type: res.data.type,
-        options: res.data.options as any, // 直接使用后端返回的选项数据
-        answer: typeof res.data.answer === 'string' ? res.data.answer : String(res.data.answer), // 确保答案是字符串
-        analysis: (res.data as any).analysis || '', // 使用类型断言获取analysis字段
+        options: res.data.options, // 使用原始选项数据
+        answer: typeof res.data.answer === 'string' ? res.data.answer : String(res.data.answer),
+        analysis: (res.data as any).analysis || '',
         tags: res.data.tags,
         submitCount: res.data.submitCount,
         acceptCount: res.data.acceptCount,
@@ -784,16 +515,13 @@ const loadProblem = async (id?: number | string): Promise<void> => {
         userName: res.data.userName
       }
       
-      // 增强调试信息
+      // 调试信息
       console.log('成功加载题目详情:', JSON.stringify(problem.value))
-      console.log('problem.options是否存在:', !!problem.value.options)
-      console.log('problem.options长度:', problem.value.options?.length || 0)
-      console.log('选项数据:', JSON.stringify(problem.value.options))
-      console.log('答案格式:', typeof problem.value.answer, problem.value.answer)
+      console.log('problem.options是否存在:', !!problem.value?.options)
+      console.log('选项数量:', problem.value?.options?.length || 0)
+      console.log('选项数据:', JSON.stringify(problem.value?.options))
+      console.log('答案格式:', typeof problem.value?.answer, problem.value?.answer)
       
-      // 成功加载题目后，加载相关数据
-      loadRelatedProblems()
-      loadSubmissionHistory()
     } else {
       console.error('获取题目详情API返回错误:', res.message)
       ElMessage.error(res.message || '获取题目详情失败')

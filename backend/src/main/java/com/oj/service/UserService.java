@@ -55,7 +55,7 @@ public interface UserService extends IService<User> {
      * 获取用户信息
      */
     UserVO getUserVO(Long userId);
-
+    boolean isAdmin(Long userId);
     /**
      * 批量获取用户信息
      */

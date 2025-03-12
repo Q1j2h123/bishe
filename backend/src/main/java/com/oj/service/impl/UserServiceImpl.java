@@ -142,6 +142,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
+    public boolean isAdmin(Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        User user = getById(userId);
+        return user != null && "admin".equals(user.getUserRole());
+    }
+
+    @Override
     public List<UserVO> getUserVOByIds(List<Long> userIds) {
         if (CollectionUtils.isEmpty(userIds)) {
             return new ArrayList<>();

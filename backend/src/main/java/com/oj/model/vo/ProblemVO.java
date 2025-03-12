@@ -1,5 +1,6 @@
 package com.oj.model.vo;
 
+import com.alibaba.excel.util.StringUtils;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.oj.model.entity.Problem;
 import io.swagger.annotations.ApiModel;
@@ -10,6 +11,7 @@ import lombok.Data;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -56,9 +58,6 @@ public class ProblemVO implements Serializable {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date updateTime;
 
-    @ApiModelProperty(value = "标准答案（仅创建者可见）")
-    private Map<String, String> standardSolution;
-
     /**
      * 状态（UNSOLVED-未解决，ATTEMPTED-尝试过，SOLVED-已解决）
      */
@@ -93,7 +92,7 @@ public class ProblemVO implements Serializable {
     /**
      * 对象转包装类
      */
-    public static ProblemVO objToVo(Problem problem) {
+    public static ProblemVO problemToVO(Problem problem, Long userId) {
         if (problem == null) {
             return null;
         }
@@ -107,10 +106,16 @@ public class ProblemVO implements Serializable {
         problemVO.setAcceptRate(problem.getAcceptRate());
         problemVO.setSubmissionCount(problem.getSubmissionCount());
         problemVO.setUserId(problem.getUserId());
-        problemVO.setCreateTime(problem.getCreateTime() != null ? 
-            Date.from(problem.getCreateTime().atZone(ZoneId.systemDefault()).toInstant()) : null);
-        problemVO.setUpdateTime(problem.getUpdateTime() != null ? 
-            Date.from(problem.getUpdateTime().atZone(ZoneId.systemDefault()).toInstant()) : null);
+        problemVO.setCreateTime(problem.getCreateTime() != null ?
+                Date.from(problem.getCreateTime().atZone(ZoneId.systemDefault()).toInstant()) : null);
+        problemVO.setUpdateTime(problem.getUpdateTime() != null ?
+                Date.from(problem.getUpdateTime().atZone(ZoneId.systemDefault()).toInstant()) : null);
+
+        // 处理标签
+        if (StringUtils.isNotBlank(problem.getTags())) {
+            problemVO.setTags(Arrays.asList(problem.getTags().split(",")));
+        }
+
         return problemVO;
     }
 } 

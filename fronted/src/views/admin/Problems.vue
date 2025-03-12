@@ -536,7 +536,7 @@ const confirmDelete = async () => {
         res = await problemApi.deleteJudgeProblem(id)
         break
       case 'PROGRAM':
-        res = await problemApi.deleteprogramProblem(id)
+        res = await problemApi.deleteProgramProblem(id)
         break
     }
     

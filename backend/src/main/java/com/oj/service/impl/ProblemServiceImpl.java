@@ -13,15 +13,16 @@ import com.oj.common.UserContext;
 import com.oj.constant.ProblemConstant;
 import com.oj.exception.BusinessException;
 import com.oj.mapper.*;
-import com.oj.model.dto.ChoiceProblemDTO;
-import com.oj.model.dto.ProblemDTO;
-import com.oj.model.dto.ProblemOptionDTO;
+import com.oj.model.dto.*;
 import com.oj.model.entity.*;
 import com.oj.model.enums.ProblemStatusEnum;
 import com.oj.model.enums.ProblemTypeEnum;
 import com.oj.model.enums.SubmissionStatusEnum;
 import com.oj.model.request.*;
+import com.oj.model.vo.ChoiceProblemVO;
+import com.oj.model.vo.JudgeProblemVO;
 import com.oj.model.vo.ProblemVO;
+import com.oj.model.vo.ProgramProblemVO;
 import com.oj.service.ProblemService;
 import com.oj.service.UserService;
 import lombok.extern.slf4j.Slf4j;
@@ -31,13 +32,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.oj.model.vo.ProblemVO.problemToVO;
 
 @Service
 @Slf4j
@@ -214,7 +212,7 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
         }
 
         // 2. 保存编程题特有信息
-        programProblem programProblem = new programProblem();
+        ProgramProblem programProblem = new ProgramProblem();
         programProblem.setId(problem.getId());
         programProblem.setFunctionName(request.getFunctionName());
 
@@ -344,11 +342,8 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
         // 2. 转换为VO对象
         return problemToVO(problem, userId);
     }
-
-
-
     @Override
-    public ProblemDTO getProblemDetail(Long id, Long userId) {
+    public ProblemDTO getProblemDetail(Long id, Long userId) {//获取基本题目信息
         log.info("开始获取题目详情, ID: {}, 用户ID: {}", id, userId);
         
         // 1. 获取题目基本信息
@@ -367,7 +362,7 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
         // 4. 获取具体题目内容
         try {
             log.info("开始获取题目[{}]详情, 类型: {}", id, problem.getType());
-            Object detail = getProblemDetailById(id, problem.getType());
+            Object detail = getProblemDetailById(id, problem.getType());//根据id获取具体题目内容
             
             if (detail == null) {
                 log.warn("题目[{}]详情为空", id);
@@ -443,41 +438,7 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
     }
 
 
-    /**
-     * Problem 转 VO
-     */
-    @Override
-    public ProblemVO problemToVO(Problem problem, Long userId) {
-        if (problem == null) {
-            return null;
-        }
-
-        ProblemVO problemVO = new ProblemVO();
-        BeanUtils.copyProperties(problem, problemVO);
-
-        // 处理标签
-        if (StringUtils.isNotBlank(problem.getTags())) {
-            problemVO.setTags(Arrays.asList(problem.getTags().split(",")));
-        }
-
-        // 如果是编程题且当前用户是创建者，则添加标准答案
-        if ("PROGRAM".equals(problem.getType()) && userId != null && userId.equals(problem.getUserId())) {
-            programProblem programProblem = programProblemMapper.selectById(problem.getId());
-            if (programProblem != null && StringUtils.isNotBlank(programProblem.getStandardSolution())) {
-                try {
-                    Map<String, String> standardSolution = objectMapper.readValue(
-                        programProblem.getStandardSolution(), 
-                        objectMapper.getTypeFactory().constructMapType(Map.class, String.class, String.class)
-                    );
-                    problemVO.setStandardSolution(standardSolution);
-                } catch (JsonProcessingException e) {
-                    log.error("解析标准答案失败", e);
-                }
-            }
-        }
-
-        return problemVO;
-    }
+    
 
     /**
      * 保存具体题目内容
@@ -501,7 +462,7 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
                 judgeProblemMapper.insert(judgeProblem);
                 break;
             case PROGRAM:
-                programProblem programProblem = objectMapper.readValue(detailJson, programProblem.class);
+                ProgramProblem programProblem = objectMapper.readValue(detailJson, ProgramProblem.class);
                 programProblem.setId(problemId);
                 validateprogramProblem(programProblem);
                 programProblemMapper.insert(programProblem);
@@ -533,7 +494,7 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
                 judgeProblemMapper.updateById(judgeProblem);
                 break;
             case PROGRAM:
-                programProblem programProblem = objectMapper.readValue(detailJson, programProblem.class);
+                ProgramProblem programProblem = objectMapper.readValue(detailJson, ProgramProblem.class);
                 programProblem.setId(problemId);
                 validateprogramProblem(programProblem);
                 programProblemMapper.updateById(programProblem);
@@ -543,13 +504,14 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
         }
     }
 
+
     /**
      * 获取具体题目内容
      */
     private Object getProblemDetailById(Long problemId, String type) {
         try {
             log.info("开始获取题目详情, ID: {}, 类型: {}", problemId, type);
-            
+
             switch (ProblemTypeEnum.valueOf(type)) {
                 case CHOICE:
                     log.info("处理选择题详情, ID: {}", problemId);
@@ -559,37 +521,28 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
                         log.warn("选择题不存在, ID: {}", problemId);
                         throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "选择题不存在");
                     }
-                    
+
                     log.info("成功获取选择题数据, ID: {}, answer: {}", problemId, choiceProblem.getAnswer());
-                    
+
                     // 将选择题转换为DTO
                     ChoiceProblemDTO dto = new ChoiceProblemDTO();
                     BeanUtils.copyProperties(choiceProblem, dto);
-                    
+
                     // 处理options字段 - 从JSON字符串转为对象列表
                     if (choiceProblem.getOptions() != null && !choiceProblem.getOptions().isEmpty()) {
                         log.info("开始解析选项数据, 数据: {}", choiceProblem.getOptions());
                         try {
                             List<ProblemOptionDTO> options = objectMapper.readValue(
-                                choiceProblem.getOptions(),
-                                new TypeReference<List<ProblemOptionDTO>>() {}
+                                    choiceProblem.getOptions(),
+                                    new TypeReference<List<ProblemOptionDTO>>() {}
                             );
-                            
-                            // 自动生成选项键
-                            char keyChar = 'A';
-                            for (ProblemOptionDTO option : options) {
-                                if (StringUtils.isBlank(option.getKey())) {
-                                    option.setKey(String.valueOf(keyChar));
-                                    log.info("为选项自动生成键: {}", keyChar);
-                                }
-                                keyChar++;
-                            }
-                            
+
+
                             log.info("选项解析成功, 选项数量: {}", options.size());
                             dto.setOptions(options);
                         } catch (Exception e) {
-                            log.error("解析选择题选项失败, 题目ID: {}, 选项数据: {}, 异常: {}", 
-                                     problemId, choiceProblem.getOptions(), e.getMessage(), e);
+                            log.error("解析选择题选项失败, 题目ID: {}, 选项数据: {}, 异常: {}",
+                                    problemId, choiceProblem.getOptions(), e.getMessage(), e);
                             // 设置为空列表而不是抛出异常
                             dto.setOptions(new ArrayList<>());
                         }
@@ -597,10 +550,10 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
                         log.warn("选择题选项为空, ID: {}", problemId);
                         dto.setOptions(new ArrayList<>());
                     }
-                    
+
                     log.info("选择题详情处理完成, ID: {}", problemId);
                     return dto;
-                    
+
                 case JUDGE:
                     log.info("处理判断题详情, ID: {}", problemId);
                     JudgeProblem judgeProblem = judgeProblemMapper.selectById(problemId);
@@ -608,17 +561,105 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
                         log.warn("判断题不存在, ID: {}", problemId);
                         throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "判断题不存在");
                     }
-                    return judgeProblem;
-                    
+
+                    // 将判断题转换为DTO
+                    JudgeProblemDTO judgeDto = new JudgeProblemDTO();
+                    BeanUtils.copyProperties(judgeProblem, judgeDto);
+
+                    log.info("判断题详情处理完成, ID: {}", problemId);
+                    return judgeDto;
+
                 case PROGRAM:
                     log.info("处理编程题详情, ID: {}", problemId);
-                    programProblem programProblem = programProblemMapper.selectById(problemId);
+                    ProgramProblem programProblem = programProblemMapper.selectById(problemId);
                     if (programProblem == null) {
                         log.warn("编程题不存在, ID: {}", problemId);
                         throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "编程题不存在");
                     }
-                    return programProblem;
-                    
+
+                    // 将编程题转换为DTO
+                    ProgramProblemDTO programDto = new ProgramProblemDTO();
+                    BeanUtils.copyProperties(programProblem, programDto);
+
+                    // 解析测试用例
+                    if (StringUtils.isNotBlank(programProblem.getTestCases())) {
+                        log.info("开始解析测试用例数据, 数据: {}", programProblem.getTestCases());
+                        try {
+                            List<TestCaseDTO> testCases = objectMapper.readValue(
+                                    programProblem.getTestCases(),
+                                    new TypeReference<List<TestCaseDTO>>() {}
+                            );
+
+                            log.info("测试用例解析成功, 用例数量: {}", testCases.size());
+                            programDto.setTestCases(testCases);
+                        } catch (Exception e) {
+                            log.error("解析编程题测试用例失败, 题目ID: {}, 测试用例数据: {}, 异常: {}",
+                                    problemId, programProblem.getTestCases(), e.getMessage(), e);
+                            programDto.setTestCases(new ArrayList<>());
+                        }
+                    } else {
+                        log.warn("编程题测试用例为空, ID: {}", problemId);
+                        programDto.setTestCases(new ArrayList<>());
+                    }
+
+                    // 解析代码模板
+                    if (StringUtils.isNotBlank(programProblem.getTemplates())) {
+                        log.info("开始解析代码模板数据, 数据: {}", programProblem.getTemplates());
+                        try {
+                            Map<String, String> templates = objectMapper.readValue(
+                                    programProblem.getTemplates(),
+                                    new TypeReference<Map<String, String>>() {}
+                            );
+
+                            log.info("代码模板解析成功, 语言数量: {}", templates.size());
+                            programDto.setTemplates(templates);
+                        } catch (Exception e) {
+                            log.error("解析编程题代码模板失败, 题目ID: {}, 模板数据: {}, 异常: {}",
+                                    problemId, programProblem.getTemplates(), e.getMessage(), e);
+                            programDto.setTemplates(new HashMap<>());
+                        }
+                    } else {
+                        log.warn("编程题代码模板为空, ID: {}", problemId);
+                        programDto.setTemplates(new HashMap<>());
+                    }
+
+                    // 设置题目状态
+                    Problem problem = problemMapper.selectById(problemId);
+                    if (problem != null) {
+                        programDto.setStatus(problem.getStatus());
+                    }
+
+                    // 解析标准答案 - 标准答案只对管理员或创建者可见
+                    Long currentUserId = UserContext.getUser().getId();
+                    if (StringUtils.isNotBlank(programProblem.getStandardSolution()) &&
+                            (problem != null && (currentUserId != null && currentUserId.equals(problem.getUserId()) || userService.isAdmin(currentUserId)))) {
+                        log.info("用户ID: {} 有权查看标准答案, 开始解析", currentUserId);
+                        try {
+                            Map<String, String> standardSolution = objectMapper.readValue(
+                                    programProblem.getStandardSolution(),
+                                    new TypeReference<Map<String, String>>() {}
+                            );
+                            programDto.setStandardSolution(standardSolution);
+                        } catch (Exception e) {
+                            log.error("解析编程题标准答案失败, 题目ID: {}, 异常: {}", problemId, e.getMessage(), e);
+                            programDto.setStandardSolution(new HashMap<>());
+                        }
+                    } else {
+                        // 对普通用户不返回标准答案
+                        programDto.setStandardSolution(null);
+                    }
+
+                    // 如果有的话，将参数类型处理为数组
+                    if (StringUtils.isNotBlank(programProblem.getParamTypes())) {
+                        String[] paramTypes = programProblem.getParamTypes().split(",");
+                        programDto.setParamTypes(Arrays.asList(paramTypes));
+                    } else {
+                        programDto.setParamTypes(new ArrayList<>());
+                    }
+
+                    log.info("编程题详情处理完成, ID: {}", problemId);
+                    return programDto;
+
                 default:
                     log.warn("不支持的题目类型: {}", type);
                     throw new BusinessException(ErrorCode.PARAMS_ERROR, "不支持的题目类型");
@@ -631,7 +672,6 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "获取题目详情失败: " + e.getMessage());
         }
     }
-
     /**
      * 校验选择题
      */
@@ -662,7 +702,7 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
     /**
      * 校验编程题
      */
-    private void validateprogramProblem(programProblem programProblem) {
+    private void validateprogramProblem(ProgramProblem programProblem) {
         if (programProblem == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -766,12 +806,109 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
         if (problemDTO == null) {
             return null;
         }
-        ProblemVO problemVO = new ProblemVO();
+
+        // 首先判断类型，根据不同类型创建不同的VO对象
+        ProblemVO problemVO;
+        try {
+            switch (ProblemTypeEnum.valueOf(problemDTO.getType())) {
+                case CHOICE:
+                    // 尝试将problemDetail解析为ChoiceProblemDTO
+                    if (StringUtils.isNotBlank(problemDTO.getProblemDetail())) {
+                        try {
+                            // 解析选择题特定信息
+                            ChoiceProblemDTO detailDTO = objectMapper.readValue(
+                                    problemDTO.getProblemDetail(),
+                                    ChoiceProblemDTO.class
+                            );
+
+                            // 确保detailDTO包含基本题目信息
+                            copyBasicProperties(problemDTO, detailDTO);
+
+                            // 使用专门的转换方法
+                            return ChoiceProblemVO.dtoToVO(detailDTO);
+                        } catch (Exception e) {
+                            log.error("解析选择题详情失败: {}", e.getMessage());
+                        }
+                    }
+                    // 如果解析失败，创建空的ChoiceProblemVO
+                    problemVO = new ChoiceProblemVO();
+                    break;
+                case JUDGE:
+                    // 尝试将problemDetail解析为JudgeProblemDTO
+                    if (StringUtils.isNotBlank(problemDTO.getProblemDetail())) {
+                        try {
+                            // 解析判断题特定信息
+                            JudgeProblemDTO detailDTO = objectMapper.readValue(
+                                    problemDTO.getProblemDetail(),
+                                    JudgeProblemDTO.class
+                            );
+
+                            // 确保detailDTO包含基本题目信息
+                            copyBasicProperties(problemDTO, detailDTO);
+
+                            // 使用专门的转换方法
+                            return JudgeProblemVO.dtoToVO(detailDTO);
+                        } catch (Exception e) {
+                            log.error("解析判断题详情失败: {}", e.getMessage());
+                        }
+                    }
+                    // 如果解析失败，创建空的JudgeProblemVO
+                    problemVO = new JudgeProblemVO();
+                    break;
+                case PROGRAM:
+                    // 尝试将problemDetail解析为ProgramProblemDTO
+                    if (StringUtils.isNotBlank(problemDTO.getProblemDetail())) {
+                        try {
+                            // 解析编程题特定信息
+                            ProgramProblemDTO detailDTO = objectMapper.readValue(
+                                    problemDTO.getProblemDetail(),
+                                    ProgramProblemDTO.class
+                            );
+
+                            // 确保detailDTO包含基本题目信息
+                            copyBasicProperties(problemDTO, detailDTO);
+
+                            // 使用专门的转换方法
+                            return ProgramProblemVO.dtoToVO(detailDTO);
+                        } catch (JsonProcessingException e) {
+                            log.error("解析编程题详情失败: {}", e.getMessage());
+                        }
+                    }
+                    // 如果解析失败，创建空的ProgramProblemVO
+                    problemVO = new ProgramProblemVO();
+                    break;
+                default:
+                    problemVO = new ProblemVO();
+            }
+        } catch (Exception e) {
+            log.error("题目类型解析失败: {}", e.getMessage());
+            problemVO = new ProblemVO();
+        }
+
+        // 复制基本字段
         BeanUtils.copyProperties(problemDTO, problemVO);
         if (StringUtils.isNotBlank(problemDTO.getTags())) {
             problemVO.setTags(Arrays.asList(problemDTO.getTags().split(",")));
         }
         return problemVO;
+    }
+
+    // 提取公共方法，复制基本属性
+    private void copyBasicProperties(ProblemDTO source, ProblemDTO target) {
+        target.setId(source.getId());
+        target.setTitle(source.getTitle());
+        target.setContent(source.getContent());
+        target.setType(source.getType());
+        target.setJobType(source.getJobType());
+        target.setDifficulty(source.getDifficulty());
+        target.setTags(source.getTags());
+        target.setStatus(source.getStatus());
+        target.setAcceptRate(source.getAcceptRate());
+        target.setSubmissionCount(source.getSubmissionCount());
+        target.setUserId(source.getUserId());
+        target.setCreatorName(source.getCreatorName());
+        target.setCreateTime(source.getCreateTime());
+        target.setUpdateTime(source.getUpdateTime());
     }
 
     @Override
@@ -924,7 +1061,7 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
             }
 
             // 3. 更新编程题特有信息
-            programProblem programProblem = new programProblem();
+            ProgramProblem programProblem = new ProgramProblem();
             programProblem.setId(request.getId());
             programProblem.setFunctionName(request.getFunctionName());
             programProblem.setParamTypes(JSONUtil.toJsonStr(request.getParamTypes()));
@@ -1404,16 +1541,6 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
         // 验证答案
         if (StringUtils.isBlank(request.getAnswer())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "答案不能为空");
-        }
-        
-        // 自动补充选项键值
-        // 移除强制验证选项键，改为自动生成
-        char keyChar = 'A';
-        for (ProblemOptionDTO option : options) {
-            if (StringUtils.isBlank(option.getKey())) {
-                option.setKey(String.valueOf(keyChar));
-            }
-            keyChar++;
         }
     }
 } 

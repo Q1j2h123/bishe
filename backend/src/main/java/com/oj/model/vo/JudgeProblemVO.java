@@ -36,6 +36,8 @@ public class JudgeProblemVO extends ProblemVO {
         vo.setTitle(dto.getTitle());
         vo.setContent(dto.getContent());
         vo.setType(dto.getType());
+
+        vo.setStatus(dto.getStatus());
         vo.setJobType(dto.getJobType());
         vo.setDifficulty(dto.getDifficulty());
         vo.setTags(StringUtils.isNotBlank(dto.getTags()) ? Arrays.asList(dto.getTags().split(",")) : null);

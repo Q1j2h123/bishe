@@ -26,6 +26,8 @@ public interface ProblemService extends IService<Problem> {
     ProblemVO getProblemById(Long id, Long userId);
 
 
+//    ProblemVO problemToVO(Problem problem, Long userId);
+
     /**
      * 获取题目详细信息（包括具体题目内容）
      */
@@ -35,14 +37,7 @@ public interface ProblemService extends IService<Problem> {
 
 
 
-    /**
-     * Problem 转 VO
-     *
-     * @param problem 题目实体
-     * @param userId 当前用户ID
-     * @return 题目VO
-     */
-    ProblemVO problemToVO(Problem problem, Long userId);
+
 
     /**
      * 获取题目的提交统计信息

@@ -1,544 +1,251 @@
 <template>
   <div class="program-problem-container">
-    <el-row :gutter="20" justify="center">
-      <el-col :xs="24" :sm="22" :md="20" :lg="18" :xl="16">
-        <!-- 题目基本信息 -->
-        <el-card class="problem-card">
-          <template #header>
-            <div class="problem-header">
-              <div class="problem-title">
-                <h2>{{ problem?.title }}</h2>
-                <div class="problem-meta">
-                  <el-tag type="primary" size="small">编程题</el-tag>
-                  <el-tag :type="getDifficultyType(problem?.difficulty)" size="small" class="ml-2">{{ problem?.difficulty }}</el-tag>
-                  <span class="problem-stats">通过率: {{ problem?.acceptCount && problem?.submitCount ? Math.round((problem.acceptCount / problem.submitCount) * 100) + '%' : '0%' }}</span>
-                </div>
-              </div>
-            </div>
-          </template>
-          
-          <!-- 题目内容 -->
-          <div class="problem-content markdown-body" v-html="renderMarkdown(problem?.content || '')"></div>
-          
-          <!-- 函数信息 -->
-          <div class="function-info" v-if="problem?.functionInfo">
-            <h3>函数信息</h3>
-            <div class="function-signature">
-              <pre><code>{{ problem.functionInfo.signature }}</code></pre>
-            </div>
-            <div class="function-description">{{ problem.functionInfo.description }}</div>
-            
-            <h4>参数说明：</h4>
-            <ul class="params-list">
-              <li v-for="(param, index) in problem.functionInfo.params" :key="index">
-                <strong>{{ param.name }}</strong>: {{ param.description }} ({{ param.type }})
-              </li>
-            </ul>
-            
-            <h4>返回值：</h4>
-            <div class="return-info">
-              <p><strong>类型：</strong> {{ problem.functionInfo.returnType }}</p>
-              <p>{{ problem.functionInfo.returnDescription }}</p>
+    <!-- 题目详情区域 -->
+    <el-card class="problem-card">
+      <template #header>
+        <div class="problem-header">
+          <div class="problem-title">
+            <h2>{{ problem?.title || '加载中...' }}</h2>
+            <div class="problem-meta">
+              <el-tag type="primary" size="small">编程题</el-tag>
+              <el-tag :type="getDifficultyType(problem?.difficulty)" size="small" class="ml-2">{{ problem?.difficulty || '未知' }}</el-tag>
+              <span class="problem-stats">通过率: {{ problem?.acceptCount && problem?.submitCount ? Math.round((problem.acceptCount / problem.submitCount) * 100) + '%' : '0%' }}</span>
             </div>
           </div>
-          
-          <!-- 限制信息 -->
-          <div class="constraints" v-if="problem?.timeLimit || problem?.memoryLimit">
-            <h3>限制条件</h3>
-            <ul>
-              <li v-if="problem?.timeLimit">时间限制: {{ problem.timeLimit }}ms</li>
-              <li v-if="problem?.memoryLimit">内存限制: {{ problem.memoryLimit }}MB</li>
-            </ul>
+        </div>
+      </template>
+      
+      <!-- 题目内容 -->
+      <div class="problem-content">
+        <div v-if="problem?.content" class="markdown-body" v-html="renderMarkdown(problem.content)"></div>
+        <div v-else class="loading-content">
+          <el-skeleton :rows="5" animated />
+        </div>
+      </div>
+      
+      <!-- 函数签名信息 -->
+      <div class="function-signature" v-if="problem">
+        <h3>函数签名</h3>
+        <el-alert
+          type="info"
+          :closable="false"
+        >
+          <pre class="function-def">{{ generateFunctionSignature() }}</pre>
+        </el-alert>
+      </div>
+      
+      <!-- 示例测试用例 -->
+      <div class="test-cases" v-if="problem && problem.testCases && problem.testCases.length > 0">
+        <h3>示例用例</h3>
+        <div v-for="(testCase, index) in problem.testCases.slice(0, 3)" :key="index" class="test-case">
+          <div class="test-case-header">
+            <span class="test-case-title">示例 {{ index + 1 }}</span>
           </div>
-          
-          <!-- 示例测试用例 -->
-          <div class="test-cases" v-if="problem?.testCases && problem.testCases.length > 0">
-            <h3>示例测试用例</h3>
-            <el-collapse>
-              <el-collapse-item v-for="(testCase, index) in problem.testCases" :key="index" :title="`示例 ${index + 1}`">
-                <div class="test-case">
-                  <div class="test-case-input">
-                    <h4>输入:</h4>
-                    <pre><code>{{ testCase.input }}</code></pre>
-                  </div>
-                  <div class="test-case-output">
-                    <h4>预期输出:</h4>
-                    <pre><code>{{ testCase.output }}</code></pre>
-                  </div>
-                  <div class="test-case-explanation" v-if="testCase.explanation">
-                    <h4>解释:</h4>
-                    <p>{{ testCase.explanation }}</p>
-                  </div>
-                </div>
-              </el-collapse-item>
-            </el-collapse>
+          <div class="test-case-content">
+            <div class="test-case-input">
+              <strong>输入:</strong> 
+              <pre>{{ testCase.input }}</pre>
+            </div>
+            <div class="test-case-output">
+              <strong>输出:</strong>
+              <pre>{{ testCase.output }}</pre>
+            </div>
           </div>
-        </el-card>
+        </div>
+      </div>
+      
+      <!-- 代码编辑器 -->
+      <div class="code-editor-section">
+        <h3>代码编辑器</h3>
         
-        <!-- 代码编辑器 -->
-        <el-card class="code-editor-card">
-          <template #header>
-            <div class="card-header">
-              <h3>代码编辑器</h3>
-              <div class="editor-options">
-                <el-select v-model="selectedLanguage" placeholder="选择语言" size="small">
-                  <el-option v-for="lang in supportedLanguages" :key="lang.value" :label="lang.label" :value="lang.value" />
-                </el-select>
-              </div>
-            </div>
-          </template>
-          
-          <!-- Monaco编辑器 -->
-          <div class="monaco-editor-container">
-            <div id="monaco-editor" ref="monacoEditorContainer" style="height: 500px; width: 100%;"></div>
-          </div>
-          
-          <!-- 编辑器功能按钮 -->
-          <div class="editor-actions">
-            <el-button type="primary" @click="runCode" :disabled="isSubmitting">
-              <el-icon><VideoPlay /></el-icon> 运行代码
-            </el-button>
-            <el-button type="success" @click="submitCode" :disabled="isSubmitting">
-              <el-icon><Upload /></el-icon> 提交代码
-            </el-button>
-            <el-button @click="resetEditor">
-              <el-icon><RefreshRight /></el-icon> 重置代码
-            </el-button>
-          </div>
-          
-          <!-- 运行结果 -->
-          <div class="run-result" v-if="runResult">
-            <h3>运行结果</h3>
-            <el-alert
-              :type="runResult.status === 'ACCEPTED' ? 'success' : 'error'"
-              :title="runResult.status === 'ACCEPTED' ? '通过' : '失败'"
-              :description="runResult.message"
-              show-icon
+        <!-- 语言选择器 -->
+        <div class="language-selector">
+          <span>选择语言:</span>
+          <el-select 
+            v-model="selectedLanguage" 
+            placeholder="请选择编程语言"
+            @change="updateCodeTemplate"
+          >
+            <el-option
+              v-for="lang in availableLanguages"
+              :key="lang.value"
+              :label="lang.label"
+              :value="lang.value"
             />
-            
-            <div class="result-details" v-if="runResult.testCaseResults && runResult.testCaseResults.length > 0">
-              <h4>测试用例结果:</h4>
-              <el-table :data="runResult.testCaseResults" border stripe>
-                <el-table-column label="测试用例" width="100" type="index" />
-                <el-table-column label="状态" width="100">
-                  <template #default="scope">
-                    <el-tag :type="scope.row.passed ? 'success' : 'danger'">
-                      {{ scope.row.passed ? '通过' : '失败' }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column label="输入" show-overflow-tooltip>
-                  <template #default="scope">
-                    <pre>{{ scope.row.input }}</pre>
-                  </template>
-                </el-table-column>
-                <el-table-column label="预期输出" show-overflow-tooltip>
-                  <template #default="scope">
-                    <pre>{{ scope.row.expectedOutput }}</pre>
-                  </template>
-                </el-table-column>
-                <el-table-column label="实际输出" show-overflow-tooltip>
-                  <template #default="scope">
-                    <pre>{{ scope.row.actualOutput }}</pre>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </div>
-            
-            <div class="execution-stats" v-if="runResult.executeTime !== undefined || runResult.executeMemory !== undefined">
-              <h4>执行统计:</h4>
-              <p>执行时间: {{ runResult.executeTime }}ms</p>
-              <p>内存消耗: {{ runResult.executeMemory }}MB</p>
-            </div>
-          </div>
-        </el-card>
+          </el-select>
+        </div>
         
-        <!-- 提交历史 -->
-        <el-card class="submission-history-card">
-          <template #header>
-            <div class="card-header">
-              <h3>我的提交历史</h3>
-            </div>
-          </template>
-          <div v-if="submissionHistory.length > 0">
-            <el-table :data="submissionHistory" style="width: 100%">
-              <el-table-column prop="id" label="提交ID" width="80" />
-              <el-table-column prop="createTime" label="提交时间" width="160">
-                <template #default="scope">
-                  {{ formatDate(scope.row.createTime) }}
-                </template>
-              </el-table-column>
-              <el-table-column prop="status" label="状态" width="150">
-                <template #default="scope">
-                  <el-tag :type="getStatusType(scope.row.status)">
-                    {{ getStatusText(scope.row.status) }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="language" label="语言" width="100" />
-              <el-table-column prop="executeTime" label="执行时间" width="100">
-                <template #default="scope">
-                  {{ scope.row.executeTime ? scope.row.executeTime + 'ms' : '-' }}
-                </template>
-              </el-table-column>
-              <el-table-column prop="executeMemory" label="内存" width="100">
-                <template #default="scope">
-                  {{ scope.row.executeMemory ? scope.row.executeMemory + 'MB' : '-' }}
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="100">
-                <template #default="scope">
-                  <el-button size="small" type="primary" text @click="viewSubmission(scope.row.id)">查看</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-          </div>
-          <el-empty v-else description="暂无提交记录" />
-        </el-card>
+        <!-- 代码编辑器 - 简单文本区域 -->
+        <div class="editor-container">
+          <textarea 
+            v-model="code" 
+            class="code-textarea"
+            spellcheck="false"
+            placeholder="在此编写代码..."
+            rows="15"
+          ></textarea>
+        </div>
         
-        <!-- 相关题目推荐 -->
-        <el-card class="related-problems-card">
-          <template #header>
-            <div class="card-header">
-              <h3>相关题目推荐</h3>
-            </div>
-          </template>
-          <div class="related-problems" v-if="relatedProblems.length > 0">
-            <el-table :data="relatedProblems" style="width: 100%">
-              <el-table-column prop="id" label="题号" width="70" />
-              <el-table-column prop="title" label="题目">
-                <template #default="scope">
-                  <router-link :to="`/problem/${scope.row.id}`">{{ scope.row.title }}</router-link>
-                </template>
-              </el-table-column>
-              <el-table-column prop="difficulty" label="难度" width="80">
-                <template #default="scope">
-                  <el-tag :type="getDifficultyType(scope.row.difficulty)" size="small">{{ scope.row.difficulty }}</el-tag>
-                </template>
-              </el-table-column>
-            </el-table>
+        <!-- 操作按钮 -->
+        <div class="editor-actions">
+          <el-button type="primary" @click="runCode">运行代码</el-button>
+          <el-button type="success" @click="submitCode">提交代码</el-button>
+          <el-button @click="resetCode">重置代码</el-button>
+        </div>
+      </div>
+      
+      <!-- 运行结果 -->
+      <div class="execution-results" v-if="runResults.show">
+        <h3>运行结果</h3>
+        <el-alert
+          :type="runResults.success ? 'success' : 'error'"
+          :title="runResults.success ? '测试通过' : '测试失败'"
+          :closable="false"
+          show-icon
+        >
+          <div v-if="runResults.success">
+            <div>执行时间: {{ runResults.executionTime }} ms</div>
+            <div>内存消耗: {{ runResults.memoryUsage }} MB</div>
           </div>
-          <el-empty v-else description="暂无相关题目推荐" />
-        </el-card>
-      </el-col>
-    </el-row>
+          <div v-else>
+            <pre class="error-message">{{ runResults.errorMessage }}</pre>
+          </div>
+        </el-alert>
+      </div>
+      
+      <!-- 运行限制信息 -->
+      <div class="execution-limits" v-if="problem">
+        <h3>执行限制</h3>
+        <div class="limits-info">
+          <el-tag type="info">时间限制: {{ problem.timeLimit || 1000 }} ms</el-tag>
+          <el-tag type="info" class="ml-2">内存限制: {{ problem.memoryLimit || 256 }} MB</el-tag>
+        </div>
+      </div>
+    </el-card>
+
+    <!-- DEBUG面板 - 开发阶段使用 -->
+    <el-card v-if="debug" class="debug-panel">
+      <template #header>
+        <div class="card-header">
+          <h3>调试信息</h3>
+          <el-button type="danger" size="small" @click="debug = false">关闭</el-button>
+        </div>
+      </template>
+      <div>
+        <h4>基本信息：</h4>
+        <pre>题目ID: {{ route.params.id }}</pre>
+        <pre>题目类型: {{ problem?.type }}</pre>
+        <pre>函数名: {{ problem?.functionName }}</pre>
+        <pre>参数类型: {{ problem?.paramTypes }}</pre>
+        <pre>返回类型: {{ problem?.returnType }}</pre>
+        
+        <h4>测试用例信息:</h4>
+        <pre>{{ JSON.stringify(problem?.testCases, null, 2) }}</pre>
+        
+        <h4>完整题目数据：</h4>
+        <pre>{{ JSON.stringify(problem, null, 2) }}</pre>
+        
+        <h4>原始API返回数据：</h4>
+        <pre>{{ JSON.stringify(originalResponse, null, 2) }}</pre>
+      </div>
+    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { ref, onMounted, defineProps, watchEffect } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { VideoPlay, Upload, RefreshRight } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { problemApi, type ProblemVO } from '@/api/problem'
-import { submissionApi, type SubmissionVO } from '@/api/submission'
+import { submissionApi, type ProgramSubmitRequest } from '@/api/submission'
 // @ts-ignore
 import MarkdownIt from 'markdown-it'
-// Monaco编辑器相关导入
-import * as monaco from 'monaco-editor'
 
-// 编辑器实例
-let editor: monaco.editor.IStandaloneCodeEditor | null = null
+// 调试模式 - 临时设置为true，用于调试
+const debug = ref(true)
 
-// 扩展ProblemVO类型，添加编程题需要的字段
-interface ExtendedProblemVO extends ProblemVO {
-  functionInfo?: {
-    signature: string;
-    description: string;
-    params: Array<{
-      name: string;
-      type: string;
-      description: string;
-    }>;
-    returnType: string;
-    returnDescription: string;
-  };
-  timeLimit?: number;
-  memoryLimit?: number;
-  testCases: Array<{
+// 定义属性，允许从父组件传入问题ID
+const props = defineProps<{
+  problemId?: number
+}>()
+
+// 保存原始API响应用于调试
+const originalResponse = ref<any>(null)
+
+// 编程题数据类型 - 移除了analysis字段
+interface ProgramProblemVO {
+  id?: number;
+  title?: string;
+  content?: string;
+  difficulty?: string;
+  type?: string;
+  functionName?: string;
+  paramTypes?: string[];
+  returnType?: string;
+  testCases?: Array<{
     input: string;
     output: string;
-    explanation?: string;
   }>;
+  templates?: Record<string, string>;
+  timeLimit?: number;
+  memoryLimit?: number;
+  tags?: string[];
+  submitCount?: number;
+  acceptCount?: number;
+  createTime?: string;
+  updateTime?: string;
+  userId?: number;
+  userName?: string;
 }
 
-// 定义运行结果类型
+// 运行结果类型
 interface RunResult {
-  status: string;
-  message: string;
-  executeTime?: number;
-  executeMemory?: number;
-  testCaseResults?: Array<{
-    passed: boolean;
-    input: string;
-    expectedOutput: string;
-    actualOutput: string;
-  }>;
+  show: boolean;
+  success: boolean;
+  executionTime?: number;
+  memoryUsage?: number;
+  output?: string;
+  errorMessage?: string;
 }
 
 // 题目数据
-const problem = ref<ExtendedProblemVO | null>(null)
-// 编辑器所在容器
-const monacoEditorContainer = ref<HTMLElement | null>(null)
-// 选择的编程语言
-const selectedLanguage = ref<string>('java')
-// 支持的编程语言列表
-const supportedLanguages = [
-  { label: 'Java', value: 'java' },
-  { label: 'Python', value: 'python' },
-  { label: 'C++', value: 'cpp' },
-  { label: 'JavaScript', value: 'javascript' }
-]
-// 是否正在提交
-const isSubmitting = ref<boolean>(false)
-// 运行结果
-const runResult = ref<RunResult | null>(null)
+const problem = ref<ProgramProblemVO | null>(null)
+
+// 代码编辑器状态
+const selectedLanguage = ref<string>('')
+const code = ref<string>('')
+const runResults = ref<RunResult>({
+  show: false,
+  success: false
+})
+
+// 可用编程语言
+const languageDisplayNames: Record<string, string> = {
+  'java': 'Java',
+  'python': 'Python',
+  'cpp': 'C++',
+  'javascript': 'JavaScript',
+  'c': 'C',
+  'csharp': 'C#',
+  'go': 'Go',
+  'ruby': 'Ruby',
+  'php': 'PHP',
+  'swift': 'Swift',
+  'kotlin': 'Kotlin',
+  'rust': 'Rust'
+};
+
+const availableLanguages = ref<{ value: string; label: string }[]>([])
+
 // 路由工具
 const router = useRouter()
 const route = useRoute()
-// 相关题目
-const relatedProblems = ref<Array<any>>([])
-// 提交历史
-const submissionHistory = ref<SubmissionVO[]>([])
 
-// 获取代码编辑器内容
-const getEditorValue = (): string => {
-  return editor?.getValue() || ''
-}
-
-// 设置代码编辑器内容
-const setEditorValue = (value: string) => {
-  editor?.setValue(value)
-}
-
-// 初始化Monaco编辑器
-const initEditor = async () => {
-  if (!monacoEditorContainer.value) return
-  
-  // 创建编辑器实例
-  editor = monaco.editor.create(monacoEditorContainer.value, {
-    value: getTemplateCode(selectedLanguage.value),
-    language: getMonacoLanguage(selectedLanguage.value),
-    theme: 'vs-dark',
-    automaticLayout: true,
-    minimap: { enabled: true },
-    scrollBeyondLastLine: false,
-    fontSize: 14,
-    tabSize: 2,
-    wordWrap: 'on'
-  })
-  
-  // 监听语言变化，更新编辑器语言
-  watch(selectedLanguage, (newLang: string) => {
-    if (!editor) return
-    
-    // 当切换语言时，提示用户是否切换模板代码
-    if (getEditorValue().trim() && getEditorValue() !== getTemplateCode(newLang)) {
-      ElMessageBox.confirm('切换语言将会替换当前代码，是否继续？', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(() => {
-        monaco.editor.setModelLanguage(editor!.getModel()!, getMonacoLanguage(newLang))
-        setEditorValue(getTemplateCode(newLang))
-      }).catch(() => {
-        // 取消切换，恢复到原来的语言
-        selectedLanguage.value = newLang
-      })
-    } else {
-      // 直接切换语言和代码
-      monaco.editor.setModelLanguage(editor!.getModel()!, getMonacoLanguage(newLang))
-      setEditorValue(getTemplateCode(newLang))
-    }
-  })
-}
-
-// 根据语言获取对应的Monaco编辑器语言
-const getMonacoLanguage = (lang: string): string => {
-  const map: Record<string, string> = {
-    'java': 'java',
-    'python': 'python',
-    'cpp': 'cpp',
-    'javascript': 'javascript'
-  }
-  return map[lang] || 'java'
-}
-
-// 根据语言获取对应的代码模板
-const getTemplateCode = (lang: string): string => {
-  if (!problem.value || !problem.value.functionInfo) return ''
-  
-  // 根据题目的函数信息生成不同语言的代码模板
-  const { signature, params, returnType } = problem.value.functionInfo
-  
-  switch (lang) {
-    case 'java':
-      return `
-/**
- * ${problem.value.title}
- */
-public class Solution {
-    ${signature} {
-        // 请在此处编写你的代码
-        
-    }
-}
-`.trim()
-    
-    case 'python':
-      return `
-# ${problem.value.title}
-def ${signature.split(' ')[1].split('(')[0]}(${params.map((p) => p.name).join(', ')}):
-    # 请在此处编写你的代码
-    pass
-`.trim()
-    
-    case 'cpp':
-      return `
-// ${problem.value.title}
-#include <vector>
-#include <string>
-using namespace std;
-
-class Solution {
-public:
-    ${signature} {
-        // 请在此处编写你的代码
-        
-    }
-};
-`.trim()
-    
-    case 'javascript':
-      return `
-/**
- * ${problem.value.title}
- */
-function ${signature.split(' ')[1].split('(')[0]}(${params.map((p) => p.name).join(', ')}) {
-    // 请在此处编写你的代码
-    
-}
-`.trim()
-    
-    default:
-      return ''
-  }
-}
-
-// 运行代码
-const runCode = async () => {
-  if (!problem.value?.id) {
-    ElMessage.error('题目信息不完整')
-    return
-  }
-  
-  const code = getEditorValue()
-  if (!code.trim()) {
-    ElMessage.warning('请先编写代码')
-    return
-  }
-  
-  isSubmitting.value = true
-  try {
-    // 实际开发中需要调用后端API运行代码
-    // const res = await problemApi.runCode({
-    //   problemId: problem.value.id,
-    //   language: selectedLanguage.value,
-    //   code
-    // })
-    
-    // 模拟运行结果
-    setTimeout(() => {
-      runResult.value = {
-        status: Math.random() > 0.3 ? 'ACCEPTED' : 'WRONG_ANSWER',
-        message: Math.random() > 0.3 ? '所有测试用例通过!' : '测试用例未通过',
-        executeTime: Math.floor(Math.random() * 100),
-        executeMemory: Math.floor(Math.random() * 20),
-        testCaseResults: [
-          {
-            passed: true,
-            input: '[1, 2, 3]',
-            expectedOutput: '6',
-            actualOutput: '6'
-          },
-          {
-            passed: Math.random() > 0.3,
-            input: '[-1, 5, 3, 2]',
-            expectedOutput: '9',
-            actualOutput: Math.random() > 0.3 ? '9' : '8'
-          }
-        ]
-      }
-      isSubmitting.value = false
-    }, 1000)
-    
-  } catch (error) {
-    console.error('运行代码异常:', error)
-    ElMessage.error('运行代码失败，请稍后重试')
-    isSubmitting.value = false
-  }
-}
-
-// 提交代码
-const submitCode = async () => {
-  if (!problem.value?.id) {
-    ElMessage.error('题目信息不完整')
-    return
-  }
-  
-  const code = getEditorValue()
-  if (!code.trim()) {
-    ElMessage.warning('请先编写代码')
-    return
-  }
-  
-  isSubmitting.value = true
-  try {
-    const res = await submissionApi.submitProgram({
-      problemId: problem.value.id,
-      language: selectedLanguage.value,
-      code
-    })
-    
-    if (res.code === 0 && res.data) {
-      ElMessage.success('提交成功')
-      // 跳转到提交详情页面
-      router.push(`/submissions/${res.data.id}`)
-    } else {
-      ElMessage.error(res.message || '提交失败')
-    }
-  } catch (error) {
-    console.error('提交代码异常:', error)
-    ElMessage.error('提交失败，请稍后重试')
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-// 重置编辑器内容
-const resetEditor = () => {
-  ElMessageBox.confirm('确定要重置代码编辑器吗？当前的代码将会丢失。', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    setEditorValue(getTemplateCode(selectedLanguage.value))
-    ElMessage.success('代码已重置')
-  }).catch(() => {
-    // 用户取消操作
-  })
-}
-
-// 查看提交详情
-const viewSubmission = (id: number) => {
-  router.push(`/submissions/${id}`)
-}
-
-// 格式化日期
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+// Markdown 渲染器
+const md = new MarkdownIt()
+const renderMarkdown = (text?: string): string => {
+  if (!text) return ''
+  return md.render(text)
 }
 
 // 获取难度颜色类型
@@ -557,115 +264,284 @@ const getDifficultyType = (difficulty?: string): string => {
   return map[difficulty] || 'info'
 }
 
-// 获取状态颜色类型
-const getStatusType = (status?: string): string => {
-  if (!status) return 'info'
+// 生成函数签名
+const generateFunctionSignature = (): string => {
+  if (!problem.value) return ''
   
-  const map: Record<string, string> = {
-    'ACCEPTED': 'success',
-    'WRONG_ANSWER': 'danger',
-    'COMPILE_ERROR': 'warning',
-    'RUNTIME_ERROR': 'danger',
-    'TIME_LIMIT_EXCEEDED': 'danger',
-    'MEMORY_LIMIT_EXCEEDED': 'danger',
-    'PENDING': 'info'
+  const func = problem.value
+  const funcName = func.functionName || 'solution'
+  const returnType = func.returnType || 'void'
+  const params = func.paramTypes || []
+  
+  let signature = ''
+  
+  // 根据不同语言生成不同的函数签名
+  switch (selectedLanguage.value) {
+    case 'java':
+      signature = `public ${returnType} ${funcName}(${params.map((type, index) => `${type} param${index + 1}`).join(', ')}) {
+    // 请实现此函数
+}`
+      break
+    case 'python':
+      signature = `def ${funcName}(${params.map((_, index) => `param${index + 1}`).join(', ')}):
+    # 请实现此函数
+    pass`
+      break
+    case 'cpp':
+      signature = `${returnType} ${funcName}(${params.map((type, index) => `${type} param${index + 1}`).join(', ')}) {
+    // 请实现此函数
+}`
+      break
+    case 'javascript':
+      signature = `function ${funcName}(${params.map((_, index) => `param${index + 1}`).join(', ')}) {
+    // 请实现此函数
+}`
+      break
+    default:
+      signature = `${returnType} ${funcName}(${params.join(', ')}) {
+    // 请实现此函数
+}`
   }
   
-  return map[status] || 'info'
+  return signature
 }
 
-// 获取状态文本
-const getStatusText = (status?: string): string => {
-  if (!status) return '未知'
-  
-  const map: Record<string, string> = {
-    'ACCEPTED': '通过',
-    'WRONG_ANSWER': '答案错误',
-    'COMPILE_ERROR': '编译错误',
-    'RUNTIME_ERROR': '运行时错误',
-    'TIME_LIMIT_EXCEEDED': '超时',
-    'MEMORY_LIMIT_EXCEEDED': '内存超限',
-    'PENDING': '评测中'
+// 处理模板数据并配置编辑器
+const processTemplates = () => {
+  if (!problem.value || !problem.value.templates) {
+    return;
   }
   
-  return map[status] || '未知'
-}
+  const templates = problem.value.templates;
+  const templateLanguages = Object.keys(templates);
+  
+  if (templateLanguages.length === 0) {
+    return;
+  }
+  
+  // 根据templates中的语言生成可选列表
+  availableLanguages.value = templateLanguages.map(lang => ({
+    value: lang,
+    label: languageDisplayNames[lang.toLowerCase()] || lang
+  }));
+  
+  console.log('可用编程语言:', availableLanguages.value);
+  
+  // 设置默认语言为第一个可用语言
+  if (selectedLanguage.value === '' || !templateLanguages.includes(selectedLanguage.value)) {
+    selectedLanguage.value = templateLanguages[0];
+  }
+  
+  // 设置默认代码为当前选中语言的模板
+  updateCodeTemplate();
+};
 
-// 获取相关题目
-const loadRelatedProblems = async () => {
-  if (!problem.value?.id) return
+// 更新代码模板
+const updateCodeTemplate = () => {
+  if (!problem.value || !problem.value.templates || !selectedLanguage.value) {
+    return;
+  }
+  
+  const template = problem.value.templates[selectedLanguage.value];
+  if (template) {
+    code.value = template;
+    console.log(`已加载${selectedLanguage.value}语言模板`);
+  }
+};
+
+// 监听语言选择变化，更新代码模板
+watchEffect(() => {
+  if (selectedLanguage.value) {
+    updateCodeTemplate();
+  }
+});
+
+// 重置代码
+const resetCode = () => {
+  if (!problem.value || !problem.value.templates || !selectedLanguage.value) {
+    return;
+  }
+  
+  const template = problem.value.templates[selectedLanguage.value];
+  if (template) {
+    code.value = template;
+    ElMessage.info('已重置代码为初始模板');
+  }
+};
+
+// 运行代码
+const runCode = async () => {
+  if (!problem.value || !problem.value.id) {
+    ElMessage.error('题目信息不完整');
+    return;
+  }
+  
+  if (!code.value.trim()) {
+    ElMessage.warning('请编写代码后再运行');
+    return;
+  }
+  
+  ElMessage.info('正在运行代码...');
   
   try {
-    // 这里假设有一个API可以获取相关题目
-    // const res = await problemApi.getRelatedProblems(problem.value.id)
-    // if (res.code === 0 && res.data) {
-    //   relatedProblems.value = res.data
-    // }
+    // 准备运行请求数据
+    const runData = {
+      problemId: problem.value.id,
+      language: selectedLanguage.value,
+      code: code.value
+    };
     
-    // 暂时使用模拟数据
-    relatedProblems.value = [
-      { id: 101, title: '二叉树的最大深度', difficulty: '简单', type: 'PROGRAM' },
-      { id: 102, title: '合并两个有序链表', difficulty: '简单', type: 'PROGRAM' },
-      { id: 103, title: '最长回文子串', difficulty: '中等', type: 'PROGRAM' }
-    ]
+    console.log('运行代码数据:', runData);
+    
+    // 在实际应用中，这里应当调用API
+    // const res = await codeApi.runCode(runData);
+    
+    // 模拟运行结果 - 实际中应替换为API调用
+    setTimeout(() => {
+      // 随机模拟成功或失败
+      const success = Math.random() > 0.3;
+      
+      runResults.value = {
+        show: true,
+        success: success,
+        executionTime: Math.floor(Math.random() * 100) + 10, // 10-110ms
+        memoryUsage: Math.floor(Math.random() * 50) + 20, // 20-70MB
+        output: success ? '执行成功!' : '',
+        errorMessage: success ? '' : '运行时错误: 数组越界或空指针异常'
+      };
+      
+      if (success) {
+        ElMessage.success('代码运行成功');
+      } else {
+        ElMessage.error('代码运行失败');
+      }
+    }, 1000);
   } catch (error) {
-    console.error('加载相关题目异常:', error)
+    console.error('运行代码异常:', error);
+    runResults.value = {
+      show: true,
+      success: false,
+      errorMessage: '系统错误，请稍后重试'
+    };
+    ElMessage.error('运行失败，请稍后重试');
   }
-}
+};
 
-// 获取提交历史
-const loadSubmissionHistory = async () => {
-  if (!problem.value?.id) return
+// 提交代码
+const submitCode = async () => {
+  // 与运行代码类似，但调用提交API
+  if (!problem.value || !problem.value.id) {
+    ElMessage.error('题目信息不完整');
+    return;
+  }
+  
+  if (!code.value.trim()) {
+    ElMessage.warning('请编写代码后再提交');
+    return;
+  }
   
   try {
-    // 实际API调用
-    // const res = await submissionApi.getProblemSubmissionList(problem.value.id)
-    // if (res.code === 0 && res.data) {
-    //   submissionHistory.value = res.data.records
-    // }
+    ElMessage.info('正在提交代码...');
     
-    // 模拟数据
-    submissionHistory.value = [
-      { id: 3001, problemId: problem.value.id, type: 'PROGRAM', language: 'Java', createTime: '2023-06-18T10:30:00', status: 'ACCEPTED', executeTime: 10, executeMemory: 10 },
-      { id: 3002, problemId: problem.value.id, type: 'PROGRAM', language: 'Python', createTime: '2023-06-17T16:20:00', status: 'WRONG_ANSWER', executeTime: 15, executeMemory: 8 },
-      { id: 3003, problemId: problem.value.id, type: 'PROGRAM', language: 'Java', createTime: '2023-06-16T14:10:00', status: 'COMPILE_ERROR', executeTime: undefined, executeMemory: undefined }
-    ]
+    // 准备提交请求
+    const submitData: ProgramSubmitRequest = {
+      problemId: problem.value.id,
+      language: selectedLanguage.value,
+      code: code.value
+    };
+    
+    console.log('提交数据:', submitData);
+    
+    // 在实际应用中，这里应当调用API
+    // const res = await submissionApi.submitProgram(submitData);
+    
+    // 模拟提交成功
+    setTimeout(() => {
+      ElMessage.success('代码提交成功，评测中...');
+      // 这里应该跳转到提交结果页面或显示提交结果
+    }, 1000);
   } catch (error) {
-    console.error('加载提交历史异常:', error)
+    console.error('提交代码异常:', error);
+    ElMessage.error('提交失败，请稍后重试');
   }
-}
-
-// Markdown 渲染器
-const md = new MarkdownIt()
-const renderMarkdown = (text: string) => {
-  return md.render(text)
-}
+};
 
 // 加载题目数据
-const loadProblem = async () => {
-  const id = route.params.id
-  if (!id) {
+const loadProblem = async (id?: number | string): Promise<void> => {
+  // 优先使用传入的ID，其次使用props，最后使用路由参数
+  let problemId = id || props.problemId
+  
+  // 处理路由参数，可能是字符串、数字或数组
+  if (!problemId && route.params.id) {
+    // 如果是数组，取第一个元素
+    problemId = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id
+  }
+  
+  if (!problemId) {
+    console.error('题目ID不能为空')
     ElMessage.error('题目ID不能为空')
     router.push('/problems')
     return
   }
   
   try {
-    const res = await problemApi.getProblemDetail(Number(id))
+    console.log('开始加载题目详情，ID:', problemId)
+    const res = await problemApi.getProblemDetail(Number(problemId))
+    
+    console.log('题目详情API完整响应:', JSON.stringify(res))
+    originalResponse.value = res.data // 保存原始数据用于调试
     
     if (res.code === 0 && res.data) {
-      problem.value = res.data
+      console.log('题目类型:', res.data.type)
       
-      // 题目加载完成后，初始化编辑器（需要函数信息生成模板代码）
-      nextTick(() => {
-        initEditor()
-      })
+      // 验证题目类型
+      if (res.data.type !== 'PROGRAM') {
+        console.warn('当前题目不是编程题:', res.data.type)
+        ElMessage.warning('当前题目不是编程题')
+        router.push(`/problem/${problemId}`)
+        return
+      }
+
+      // 将后端返回的数据转换为我们自定义的ProgramProblemVO类型
+      const responseData = res.data as any // 临时使用any类型避免类型错误
       
-      // 成功加载题目后，加载相关数据
-      loadRelatedProblems()
-      loadSubmissionHistory()
+      problem.value = {
+        id: responseData.id,
+        title: responseData.title,
+        content: responseData.content,
+        difficulty: responseData.difficulty,
+        type: responseData.type,
+        functionName: responseData.functionName,
+        paramTypes: responseData.paramTypes || [],
+        returnType: responseData.returnType,
+        testCases: responseData.testCases || [],
+        templates: responseData.templates || {},
+        timeLimit: responseData.timeLimit,
+        memoryLimit: responseData.memoryLimit,
+        tags: responseData.tags,
+        submitCount: responseData.submitCount,
+        acceptCount: responseData.acceptCount,
+        createTime: responseData.createTime,
+        updateTime: responseData.updateTime,
+        userId: responseData.userId,
+        userName: responseData.userName
+      }
+      
+      // 设置默认代码
+      if (problem.value.templates && problem.value.templates[selectedLanguage.value]) {
+        code.value = problem.value.templates[selectedLanguage.value]
+      } else {
+        code.value = generateFunctionSignature()
+      }
+      
+      // 调试信息
+      console.log('成功加载题目详情:', JSON.stringify(problem.value))
+      
+      // 处理模板数据
+      processTemplates();
       
     } else {
+      console.error('获取题目详情API返回错误:', res.message)
       ElMessage.error(res.message || '获取题目详情失败')
       router.push('/problems')
     }
@@ -676,17 +552,28 @@ const loadProblem = async () => {
   }
 }
 
-// 页面加载时获取题目详情
-onMounted(() => {
-  loadProblem()
+// 使用watchEffect监听props或route参数的变化
+watchEffect(() => {
+  let problemId: number | string | undefined = props.problemId
+  
+  // 处理路由参数，可能是字符串、数字或数组
+  if (!problemId && route.params.id) {
+    problemId = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id
+    console.log('从路由参数获取的问题ID:', problemId)
+  }
+  
+  if (problemId) {
+    console.log('watchEffect触发加载问题:', problemId)
+    loadProblem(problemId)
+  } else {
+    console.warn('watchEffect未检测到有效的问题ID')
+  }
 })
 
-// 组件销毁前清理编辑器实例
-onBeforeUnmount(() => {
-  if (editor) {
-    editor.dispose()
-    editor = null
-  }
+// 页面加载时不再主动调用loadProblem，由watchEffect触发
+onMounted(() => {
+  // watchEffect会自动触发加载
+  console.log('ProgramProblemDetail组件已挂载，路由参数:', route.params)
 })
 </script>
 
@@ -697,16 +584,19 @@ onBeforeUnmount(() => {
   min-height: 100vh;
 }
 
-.problem-card, .code-editor-card, .related-problems-card, .submission-history-card {
-  margin-bottom: 20px;
+.problem-card {
   border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .problem-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
 
 .problem-title {
   display: flex;
@@ -715,6 +605,7 @@ onBeforeUnmount(() => {
 
 .problem-title h2 {
   margin-bottom: 10px;
+  color: #303133;
 }
 
 .problem-meta {
@@ -732,133 +623,200 @@ onBeforeUnmount(() => {
 .ml-2 {
   margin-left: 8px;
 }
-
-.problem-content {
-  margin: 20px 0;
-  line-height: 1.6;
+  
+  .problem-content {
+    margin: 20px 0;
+    line-height: 1.6;
   font-size: 16px;
-}
-
-.function-info {
-  margin: 20px 0;
+  color: #303133;
+  background-color: #ffffff;
   padding: 20px;
-  background-color: #f9f9f9;
   border-radius: 8px;
-  border-left: 4px solid #409EFF;
+  border: 1px solid #ebeef5;
+  }
+  
+  .function-signature {
+  margin: 20px 0;
 }
 
-.function-signature {
-  margin: 15px 0;
-  padding: 10px;
-  background-color: #f0f0f0;
+.function-signature h3 {
+  margin-bottom: 15px;
+  color: #303133;
+}
+
+.function-def {
+  font-family: 'Consolas', 'Monaco', monospace;
+    background-color: #f5f7fa;
+    padding: 10px;
+    border-radius: 4px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  }
+  
+  .test-cases {
+  margin: 20px 0;
+}
+
+.test-cases h3 {
+  margin-bottom: 15px;
+  color: #303133;
+  }
+  
+  .test-case {
+    background-color: #f5f7fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  border: 1px solid #ebeef5;
+  }
+  
+  .test-case-header {
+  margin-bottom: 10px;
+    font-weight: bold;
+  color: #303133;
+  }
+  
+  .test-case-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+.test-case-input pre,
+.test-case-output pre {
+  background-color: #ffffff;
+  padding: 8px;
   border-radius: 4px;
+  margin: 5px 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
   overflow-x: auto;
 }
 
-.function-signature pre {
-  margin: 0;
-  font-family: 'Courier New', Courier, monospace;
-}
-
-.params-list {
-  padding-left: 20px;
-}
-
-.params-list li {
-  margin-bottom: 8px;
-}
-
-.return-info {
-  margin-top: 10px;
-}
-
-.constraints {
+.code-editor-section {
   margin: 20px 0;
-  padding: 15px;
-  background-color: #fff7e6;
+  background-color: #f8f9fa;
   border-radius: 8px;
-  border-left: 4px solid #e6a23c;
+  padding: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
 }
 
-.test-cases {
-  margin: 20px 0;
+.code-editor-section h3 {
+  margin-bottom: 20px;
+  color: #303133;
+  font-size: 18px;
 }
 
-.test-case {
-  margin-top: 10px;
-}
-
-.test-case-input, .test-case-output, .test-case-explanation {
+.language-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 15px;
 }
 
-.test-case-input pre, .test-case-output pre {
-  padding: 10px;
-  background-color: #f5f5f5;
+.editor-container {
+  margin: 15px 0;
+  border: 1px solid #dcdfe6;
   border-radius: 4px;
-  overflow-x: auto;
-  font-family: 'Courier New', Courier, monospace;
+  overflow: hidden;
+  background-color: #1e1e1e;
 }
 
-.card-header {
+.code-textarea {
+  width: 100%;
+  min-height: 350px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  padding: 15px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #e2e2e2;
+  background-color: #1e1e1e;
+  border: none;
+  resize: vertical;
+}
+
+.editor-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.execution-results {
+  margin: 20px 0;
+}
+
+.execution-results h3 {
+  margin-bottom: 15px;
+  color: #303133;
+}
+
+.error-message {
+  color: #f56c6c;
+  background-color: #fef0f0;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.execution-limits {
+  margin: 20px 0;
+}
+
+.execution-limits h3 {
+  margin-bottom: 15px;
+  color: #303133;
+}
+
+.limits-info {
+    display: flex;
+    gap: 10px;
+  }
+  
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .card-header h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+  color: #303133;
 }
 
-.editor-options {
-  display: flex;
-  gap: 10px;
+.debug-panel {
+    margin-top: 20px;
+  background-color: #fef0f0;
+  color: #f56c6c;
+  max-width: 1000px;
+  margin: 20px auto 0;
 }
 
-.monaco-editor-container {
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.editor-actions {
-  margin-top: 15px;
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-.run-result {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #ebeef5;
-}
-
-.result-details, .execution-stats {
-  margin-top: 15px;
-}
-
-.execution-stats p {
-  margin: 5px 0;
-  font-family: 'Courier New', Courier, monospace;
-}
-
-/* 固定高度的表格 */
-.el-table {
-  --el-table-header-bg-color: #f5f7fa;
-}
-
-.el-table :deep(.el-table__body-wrapper) {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-pre {
-  margin: 0;
-  font-family: 'Courier New', Courier, monospace;
+.debug-panel pre {
   white-space: pre-wrap;
-  word-break: break-all;
+  word-wrap: break-word;
+  background-color: #303133;
+  color: #ffffff;
+    padding: 10px;
+    border-radius: 4px;
+  overflow: auto;
+  margin: 10px 0;
 }
-</style>
+
+.debug-panel h4 {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #f56c6c;
+  padding-bottom: 5px;
+}
+
+.loading-content {
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  }
+  </style>
