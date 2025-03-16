@@ -5,7 +5,9 @@ import { useUserStore } from '@/stores/user'
 import { ElMessage, ElCarousel, ElCarouselItem } from 'element-plus'
 import { User, Key, Switch, ArrowRight, Trophy, Edit, List, Promotion } from '@element-plus/icons-vue'
 import { problemApi } from '@/api/problem'
+import { dashboardApi } from '@/api/dashboard'
 import type { ProblemVO } from '@/api/problem'
+import type { HomeStats } from '@/api/dashboard'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -16,6 +18,7 @@ const statistics = ref({
   totalUsers: 0,
   totalSubmissions: 0
 })
+const dataLoading = ref(false)
 
 // 获取每日推荐题目
 const fetchDailyProblem = async () => {
@@ -26,6 +29,34 @@ const fetchDailyProblem = async () => {
     }
   } catch (error) {
     console.error('获取每日推荐题目失败', error)
+  }
+}
+
+// 获取统计数据
+const fetchStatistics = async () => {
+  dataLoading.value = true
+  try {
+    const res = await dashboardApi.getHomeStats()
+    if (res.code === 0 && res.data) {
+      statistics.value = res.data
+    } else {
+      // 如果获取失败，使用默认值
+      statistics.value = {
+        totalProblems: 568,
+        totalUsers: 2547,
+        totalSubmissions: 27896
+      }
+    }
+  } catch (error) {
+    console.error('获取统计数据失败', error)
+    // 如果API不存在或发生错误，使用默认值
+    statistics.value = {
+      totalProblems: 568,
+      totalUsers: 2547,
+      totalSubmissions: 27896
+    }
+  } finally {
+    dataLoading.value = false
   }
 }
 
@@ -46,12 +77,8 @@ onMounted(async () => {
   // 获取每日推荐题目
   fetchDailyProblem()
   
-  // 模拟统计数据
-  statistics.value = {
-    totalProblems: 568,
-    totalUsers: 2547,
-    totalSubmissions: 27896
-  }
+  // 获取最新统计数据
+  fetchStatistics()
 })
 
 // 处理登录/注册
@@ -75,15 +102,15 @@ const handleLogout = () => {
   <div class="home-container">
     <!-- 顶部导航栏 -->
     <el-header class="header">
-      <div class="logo">
-        <h1>在线判题系统</h1>
+      <div class="logo" @click="router.push('/home')">
+        <h1>面试刷题平台</h1>
       </div>
       
       <!-- 主导航 -->
       <div class="main-nav">
         <el-button text :type="$route.path === '/home' ? 'primary' : 'default'" @click="router.push('/home')">首页</el-button>
         <el-button text :type="$route.path === '/problems' ? 'primary' : 'default'" @click="router.push('/problems')">题库</el-button>
-        <el-button text :type="$route.path === '/submissions' ? 'primary' : 'default'" @click="router.push('/submissions')">提交记录</el-button>
+        <el-button text :type="$route.path === '/my-submissions' ? 'primary' : 'default'" @click="router.push('/my-submissions')">提交记录</el-button>
         <el-button text :type="$route.path === '/leaderboard' ? 'primary' : 'default'" @click="router.push('/leaderboard')">排行榜</el-button>
       </div>
       
@@ -101,9 +128,10 @@ const handleLogout = () => {
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="router.push('/profile')">
-                  <el-icon><User /></el-icon>
-                  <span>个人中心</span>
+                
+                <el-dropdown-item @click="router.push('/user-center')">
+                  <el-icon><Promotion /></el-icon>
+                  <span>个人数据中心</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="userStore.currentUser.userRole === 'admin'" @click="router.push('/admin/dashboard')">
                   <el-icon><List /></el-icon>
@@ -235,7 +263,7 @@ const handleLogout = () => {
     <!-- 页脚 -->
     <el-footer class="footer">
       <div class="footer-content">
-        <p>&copy; 2024 在线判题系统. 版权所有.</p>
+        <p>&copy; 2025 面试刷题平台. 版权所有.</p>
       </div>
     </el-footer>
   </div>
@@ -258,10 +286,19 @@ const handleLogout = () => {
   height: 60px;
 }
 
+.logo {
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.logo:hover {
+  color: #66b1ff;
+}
+
 .logo h1 {
-  font-size: 20px;
-  color: var(--primary-color);
   margin: 0;
+  font-size: 22px;
+  color: #409EFF;
 }
 
 .main-nav {

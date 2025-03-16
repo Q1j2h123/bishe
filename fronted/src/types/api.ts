@@ -35,6 +35,7 @@ export interface UserInfo {
   userName: string
   userAvatar: string
   userProfile: string
+  userBio: string
   userRole: string
   createTime: string
 }

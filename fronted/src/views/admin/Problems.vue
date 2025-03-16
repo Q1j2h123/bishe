@@ -117,7 +117,6 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleQuery">查询</el-button>
           <el-button @click="resetQuery">重置</el-button>
         </el-form-item>
       </el-form>
@@ -402,6 +401,9 @@ const handleParamChange = (label: string, value: any) => {
   
   // 显示选中内容
   ElMessage.success(`已选择${label}: ${value}`)
+  
+  // 立即执行查询
+  loadProblemList()
 }
 
 // 处理标签参数变化
@@ -410,6 +412,9 @@ const handleTagsChange = (tags: string[]) => {
   
   // 显示选中内容
   ElMessage.success(`已选择${tags.length}个标签: ${tags.join(', ')}`)
+  
+  // 立即执行查询
+  loadProblemList()
 }
 
 // 加载题目列表
@@ -435,10 +440,24 @@ const loadProblemList = async () => {
         const problem = { ...item } as ProblemVO & { status?: string }
         
         // 确保tags始终是数组
-        if (!problem.tags) problem.tags = []
+        if (!problem.tags) {
+          problem.tags = []
+        } else if (typeof problem.tags === 'string') {
+          // 如果是字符串，尝试转换为数组
+          try {
+            const parsedTags = JSON.parse(problem.tags);
+            problem.tags = Array.isArray(parsedTags) ? parsedTags : [problem.tags];
+          } catch (e) {
+            // 如果解析失败，按逗号分隔
+            const tagStr = problem.tags as unknown as string;
+            problem.tags = tagStr.split(',');
+          }
+        }
         
-        // 不需要标准化难度值，由getDifficultyText处理显示
-        // 统一使用英文标准值: EASY, MEDIUM, HARD
+        // 清理标签数据，去除引号和括号
+        problem.tags = problem.tags.map(tag => 
+          String(tag).replace(/["'\[\]{}]/g, '').trim()
+        );
         
         return problem
       })

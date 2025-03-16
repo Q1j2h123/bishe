@@ -58,6 +58,13 @@ export interface SubmissionStats {
   }[];
 }
 
+// 首页统计数据
+export interface HomeStats {
+  totalProblems: number;      // 题目总数
+  totalUsers: number;         // 用户总数
+  totalSubmissions: number;   // 提交总数
+}
+
 // 仪表盘API
 export const dashboardApi = {
   // 获取统计数据
@@ -78,5 +85,10 @@ export const dashboardApi = {
   // 获取提交统计
   getSubmissionStats(): Promise<BaseResponse<SubmissionStats>> {
     return request.get('admin/dashboard/submissions');
+  },
+
+  // 获取首页统计数据
+  getHomeStats(): Promise<BaseResponse<HomeStats>> {
+    return request.get('dashboard/home/stats');
   }
 }; 

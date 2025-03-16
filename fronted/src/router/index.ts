@@ -58,10 +58,16 @@ const router = createRouter({
       meta: { requiresAuth: false, title: '编程题详情' }
     },
     {
-      path: '/submissions',
-      name: 'Submissions',
-      component: () => import('@/views/Submissions.vue'),
-      meta: { requiresAuth: true, title: '提交记录' }
+      path: '/my-submissions',
+      name: 'UserSubmissions',
+      component: () => import('@/views/UserSubmissions.vue'),
+      meta: { requiresAuth: true, title: '我的提交记录' }
+    },
+    {
+      path: '/submission/:id',
+      name: 'SubmissionDetail',
+      component: () => import('@/views/SubmissionDetail.vue'),
+      meta: { requiresAuth: true, title: '提交详情' }
     },
     {
       path: '/leaderboard',
@@ -70,9 +76,9 @@ const router = createRouter({
       meta: { requiresAuth: true, title: '排行榜' }
     },
     {
-      path: '/profile',
-      name: 'Profile',
-      component: () => import('@/views/Profile.vue'),
+      path: '/user-center',
+      name: 'UserCenter',
+      component: () => import('@/views/UserCenter.vue'),
       meta: { requiresAuth: true, title: '个人中心' }
     },
     {

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.oj.model.entity.User;
 import com.oj.model.dto.UserDTO;
 import com.oj.model.vo.UserVO;
+import com.oj.model.request.UserUpdateRequest;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -88,4 +89,17 @@ public interface UserService extends IService<User> {
      * @return 用户实体
      */
     User getById(Long id);
+
+    /**
+     * 更新用户信息
+     * @param userUpdateRequest 用户更新信息
+     * @param request HTTP请求
+     * @return 是否更新成功
+     */
+    boolean updateUser(UserUpdateRequest userUpdateRequest, HttpServletRequest request);
+
+    /**
+     * 统计用户总数
+     */
+    Integer countUsers();
 }

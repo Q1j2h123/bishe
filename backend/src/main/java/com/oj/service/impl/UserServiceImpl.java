@@ -10,6 +10,7 @@ import com.oj.mapper.UserMapper;
 import com.oj.model.entity.User;
 import com.oj.model.dto.UserDTO;
 import com.oj.model.vo.UserVO;
+import com.oj.model.request.UserUpdateRequest;
 import com.oj.service.TokenBlacklistService;
 import com.oj.service.UserService;
 import com.oj.utils.JwtUtils;
@@ -242,5 +243,39 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         return userMapper.selectById(id);
+    }
+
+    @Override
+    public Integer countUsers() {
+        // 查询所有用户数量并转为Integer
+        return Math.toIntExact(userMapper.selectCount(null));
+    }
+
+    @Override
+    public boolean updateUser(UserUpdateRequest userUpdateRequest, HttpServletRequest request) {
+        if (userUpdateRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        // 获取当前登录用户
+        User loginUser = this.getLoginUser(request);
+        if (loginUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        
+        // 更新用户信息
+        User user = new User();
+        user.setId(loginUser.getId());
+        if (StringUtils.isNotBlank(userUpdateRequest.getUserName())) {
+            user.setUserName(userUpdateRequest.getUserName());
+        }
+        if (StringUtils.isNotBlank(userUpdateRequest.getUserAvatar())) {
+            user.setUserAvatar(userUpdateRequest.getUserAvatar());
+        }
+        if (StringUtils.isNotBlank(userUpdateRequest.getUserProfile())) {
+            user.setUserProfile(userUpdateRequest.getUserProfile());
+        }
+        user.setUpdateTime(LocalDateTime.now());
+        
+        return this.updateById(user);
     }
 } 

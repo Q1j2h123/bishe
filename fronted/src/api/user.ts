@@ -21,6 +21,7 @@ export interface LoginResponse {
     userName: string
     userAvatar: string | null
     userProfile: string | null
+    userBio: string | null
     userRole: string
   }
   token: string
@@ -84,7 +85,7 @@ export const userApi = {
   // 获取当前登录用户信息
   async getCurrentUser() {
     try {
-      const response: any = await request.get('/user/current')
+      const response: any = await request.get('user/current')
       
       if (!response) {
         throw new Error('获取用户信息失败，服务器未返回有效数据')
@@ -110,11 +111,7 @@ export const userApi = {
         throw new Error('更新用户信息失败，服务器未返回有效数据')
       }
       
-      if (response.code !== 0) {
-        throw new Error(response.message || '更新用户信息失败')
-      }
-      
-      return response.data
+      return response
     } catch (error) {
       console.error('更新用户信息错误:', error)
       throw error

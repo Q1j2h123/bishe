@@ -161,4 +161,14 @@ public interface ProblemService extends IService<Problem> {
      * @return 分页结果
      */
     Page<ProblemVO> searchProblemAdvanced(ProblemSearchRequest problemSearchRequest, Long userId);
+
+    /**
+     * 获取所有标签
+     */
+    List<String> getAllTags();
+
+    /**
+     * 统计题目总数
+     */
+    Integer countProblems();
 }

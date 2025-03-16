@@ -31,6 +31,9 @@ public class ProblemQueryRequest extends PageRequest implements Serializable {
     @ApiModelProperty(value = "题目难度（EASY-简单, MEDIUM-中等, HARD-困难）")
     private String difficulty;
 
+    @ApiModelProperty(value = "单个标签（兼容提交列表的标签查询）")
+    private String tag;
+
     @ApiModelProperty(value = "标签列表")
     private List<String> tags;
 

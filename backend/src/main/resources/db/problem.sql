@@ -121,3 +121,52 @@ ALTER TABLE `program_problem`
 ADD COLUMN `standardSolution` json COMMENT '各语言的标准答案，JSON格式，如：{"java": "public class Solution {...}", "python": "class Solution:..."}';
 ALTER TABLE `problem`
 ADD COLUMN `status` varchar(255) COMMENT '状态（UNSOLVED-未解决，ATTEMPTED-尝试过，SOLVED-已解决）';
+
+ALTER TABLE `program_submission`
+ADD COLUMN `errorMessage` text COMMENT '详细错误信息，包含编译错误或运行时错误的具体内容';
+ALTER TABLE `submission`
+ADD COLUMN `status` varchar(32) NOT NULL COMMENT '提交状态：PENDING(待评测)、JUDGING(评测中)、ACCEPTED(通过)、WRONG_ANSWER(答案错误)、TIME_LIMIT_EXCEEDED(超时)、MEMORY_LIMIT_EXCEEDED(内存超限)、RUNTIME_ERROR(运行错误)、COMPILE_ERROR(编译错误)、SYSTEM_ERROR(系统错误)';
+ALTER TABLE `program_submission`
+DROP COLUMN `status`;
+
+ALTER TABLE `choice_judge_submission`
+DROP COLUMN `isCorrect`;
+
+   CREATE TABLE `user_problem_status` (
+       `id` bigint NOT NULL AUTO_INCREMENT,
+       `userId` bigint NOT NULL,
+       `problemId` bigint NOT NULL,
+       `status` varchar(32) NOT NULL COMMENT 'UNSOLVED/ATTEMPTED/SOLVED',
+       `lastSubmitTime` datetime DEFAULT NULL,
+       `createTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       `updateTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+       PRIMARY KEY (`id`),
+       UNIQUE KEY `uk_user_problem` (`userId`, `problemId`)
+   );
+   CREATE TABLE `draft_solution` (
+       `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+       `userId` bigint NOT NULL COMMENT '用户ID',
+       `problemId` bigint NOT NULL COMMENT '题目ID',
+       `Type` varchar(32) NOT NULL COMMENT '题目类型: CHOICE, JUDGE, PROGRAM',
+       `content` text NOT NULL COMMENT '草稿内容(选择题/判断题的选择或编程题的代码)',
+       `language` varchar(32) DEFAULT NULL COMMENT '编程语言(编程题适用)',
+       `lastSaveTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+       `createTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       PRIMARY KEY (`id`),
+       UNIQUE KEY `uk_user_problem` (`userId`, `problemId`)
+   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户题目草稿';
+   -- 创建错题记录表
+   CREATE TABLE IF NOT EXISTS `error_problem` (
+     `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'ID',
+     `userId` bigint NOT NULL COMMENT '用户ID',
+     `problemId` bigint NOT NULL COMMENT '题目ID',
+     `lastErrorTime` datetime NOT NULL COMMENT '最近错误时间',
+     `status` tinyint NOT NULL DEFAULT '0' COMMENT '状态(0-未掌握, 1-已掌握)',
+     `createTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+     `updateTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+     `isDelete` tinyint NOT NULL DEFAULT '0' COMMENT '是否删除(0-未删, 1-已删)',
+     PRIMARY KEY (`id`),
+     UNIQUE KEY `idx_user_problem` (`userId`, `problemId`),
+     KEY `idx_user_id` (`userId`),
+     KEY `idx_problem_id` (`problemId`)
+   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='错题记录表';

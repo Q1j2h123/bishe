@@ -1,4 +1,19 @@
 <script setup lang="ts">
+import { useUserStore } from './stores/user'
+import { onMounted } from 'vue'
+
+const userStore = useUserStore()
+
+// 应用加载时尝试获取用户信息
+onMounted(async () => {
+  if (userStore.token) {
+    try {
+      await userStore.getCurrentUser()
+    } catch (error) {
+      console.error('加载用户信息失败:', error)
+    }
+  }
+})
 </script>
 
 <template>

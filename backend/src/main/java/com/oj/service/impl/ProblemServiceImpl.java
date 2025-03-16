@@ -100,13 +100,7 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
 
         // 处理标签
         if (request.getTags() != null && !request.getTags().isEmpty()) {
-            try {
-                problem.setTags(objectMapper.writeValueAsString(request.getTags()));
-                log.info("标签序列化成功: {}", problem.getTags());
-            } catch (Exception e) {
-                log.error("标签序列化失败: {}", e.getMessage(), e);
-                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "标签格式错误: " + e.getMessage());
-            }
+            problem.setTags(formatTags(request.getTags()));
         }
 
         log.info("保存基础题目信息");
@@ -168,6 +162,11 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
         problem.setSubmissionCount(0);
         problem.setStatus(ProblemStatusEnum.UNSOLVED.getValue());  // 使用枚举值
 
+        // 处理标签
+        if (judgeAddRequest.getTags() != null && !judgeAddRequest.getTags().isEmpty()) {
+            problem.setTags(formatTags(judgeAddRequest.getTags()));
+        }
+
         boolean saveResult = problemMapper.insert(problem) > 0;
         if (!saveResult) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "保存题目失败");
@@ -202,7 +201,7 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
 
         // 处理标签 - 确保标签不为null
         if (request.getTags() != null && !request.getTags().isEmpty()) {
-            problem.setTags(String.join(",", request.getTags()));
+            problem.setTags(formatTags(request.getTags()));
         } else {
             problem.setTags(""); // 设置空字符串而不是null
         }
@@ -1166,15 +1165,41 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
             queryWrapper.eq(Problem::getDifficulty, difficulty);
         }
         
-        // 根据标签查询
+        // 处理标签查询
+        String tag = request.getTag();
         List<String> tags = request.getTags();
-        if (tags != null && !tags.isEmpty()) {
-            // 标签是以逗号分隔的字符串，使用模糊查询每个标签
-            for (String tag : tags) {
+        if (StringUtils.isNotBlank(tag) || (tags != null && !tags.isEmpty())) {
+            log.info("处理标签查询 - 单标签: {}, 标签列表: {}", tag, tags);
+            
+            queryWrapper.and(wrapper -> {
+                boolean hasTagCondition = false;
+                
                 if (StringUtils.isNotBlank(tag)) {
-                    queryWrapper.like(Problem::getTags, tag);
+                    log.info("添加单标签查询条件: {}", tag);
+                    wrapper.like(Problem::getTags, tag);
+                    hasTagCondition = true;
                 }
-            }
+                
+                if (tags != null && !tags.isEmpty()) {
+                    log.info("添加多标签查询条件，标签数量: {}", tags.size());
+                    
+                    for (String t : tags) {
+                        if (StringUtils.isNotBlank(t)) {
+                            if (t.equals(tag)) {
+                                continue;
+                            }
+                            
+                            if (hasTagCondition) {
+                                wrapper.or().like(Problem::getTags, t);
+                            } else {
+                                wrapper.like(Problem::getTags, t);
+                                hasTagCondition = true;
+                            }
+                            log.info("添加标签条件: {}", t);
+                        }
+                    }
+                }
+            });
         }
         
         // 根据创建者ID查询
@@ -1187,7 +1212,6 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
         String status = request.getStatus();
         if (StringUtils.isNotBlank(status)) {
             try {
-                // 验证状态值是否合法
                 if (ProblemStatusEnum.getByValue(status) != null) {
                     queryWrapper.eq(Problem::getStatus, status);
                 } else {
@@ -1388,12 +1412,21 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
         // 处理标签列表
         List<String> tags = problemSearchRequest.getTags();
         if (tags != null && !tags.isEmpty()) {
-            // 标签是以逗号分隔的字符串，使用模糊查询每个标签
-            for (String tag : tags) {
-                if (StringUtils.isNotBlank(tag)) {
-                    queryWrapper.like(Problem::getTags, tag);
+            // 使用嵌套查询
+            queryWrapper.and(wrapper -> {
+                boolean isFirst = true;
+                // 标签是以逗号分隔的字符串，使用模糊查询每个标签
+                for (String tag : tags) {
+                    if (StringUtils.isNotBlank(tag)) {
+                        if (isFirst) {
+                            wrapper.like(Problem::getTags, tag);
+                            isFirst = false;
+                        } else {
+                            wrapper.or().like(Problem::getTags, tag);
+                        }
+                    }
                 }
-            }
+            });
         }
         
         // 处理创建者ID列表
@@ -1542,5 +1575,36 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
         if (StringUtils.isBlank(request.getAnswer())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "答案不能为空");
         }
+    }
+
+    @Override
+    public List<String> getAllTags() {
+        // 查询所有题目
+        List<Problem> problems = this.list();
+        
+        // 收集所有标签
+        Set<String> tagSet = new HashSet<>();
+        for (Problem problem : problems) {
+            String tags = problem.getTags();
+            if (tags != null && !tags.isEmpty()) {
+                String[] tagArray = tags.split(",");
+                for (String tag : tagArray) {
+                    if (!tag.trim().isEmpty()) {
+                        tagSet.add(tag.trim());
+                    }
+                }
+            }
+        }
+        
+        // 转换为列表并排序
+        List<String> result = new ArrayList<>(tagSet);
+        Collections.sort(result);
+        return result;
+    }
+    
+    @Override
+    public Integer countProblems() {
+        // 查询所有题目数量并转为Integer
+        return Math.toIntExact(problemMapper.selectCount(null));
     }
 } 

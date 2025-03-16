@@ -27,6 +27,9 @@ public class ChoiceProblemVO extends ProblemVO {
     
     @ApiModelProperty(value = "题目解析")
     private String analysis;
+    
+    @ApiModelProperty(value = "是否为多选题", notes = "根据answer判断，有逗号表示多选题，否则为单选题")
+    private Boolean isMultiple;
 
     /**
      * DTO转VO
@@ -58,6 +61,15 @@ public class ChoiceProblemVO extends ProblemVO {
         vo.setOptions(dto.getOptions());
         vo.setAnswer(dto.getAnswer());
         vo.setAnalysis(dto.getAnalysis());
+        
+        // 判断是否为多选题
+        if (StringUtils.isNotBlank(dto.getAnswer())) {
+            // 如果答案中包含逗号，则为多选题
+            vo.setIsMultiple(dto.getAnswer().contains(","));
+        } else {
+            // 默认为单选题
+            vo.setIsMultiple(false);
+        }
         
         return vo;
     }

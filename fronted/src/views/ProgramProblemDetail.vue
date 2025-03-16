@@ -12,6 +12,7 @@
               <span class="problem-stats">通过率: {{ problem?.acceptCount && problem?.submitCount ? Math.round((problem.acceptCount / problem.submitCount) * 100) + '%' : '0%' }}</span>
             </div>
           </div>
+          <el-button type="primary" plain size="small" @click="returnToList" :icon="Back">返回题目列表</el-button>
         </div>
       </template>
       
@@ -155,7 +156,8 @@
 <script setup lang="ts">
 import { ref, onMounted, defineProps, watchEffect } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Back } from '@element-plus/icons-vue'
 import { problemApi, type ProblemVO } from '@/api/problem'
 import { submissionApi, type ProgramSubmitRequest } from '@/api/submission'
 // @ts-ignore
@@ -214,6 +216,7 @@ const problem = ref<ProgramProblemVO | null>(null)
 // 代码编辑器状态
 const selectedLanguage = ref<string>('')
 const code = ref<string>('')
+const latestSubmissionId = ref<number | null>(null)
 const runResults = ref<RunResult>({
   show: false,
   success: false
@@ -427,6 +430,17 @@ const runCode = async () => {
   }
 };
 
+// 添加返回列表函数
+const returnToList = () => {
+  router.push({
+    path: '/problems',
+    query: { 
+      t: Date.now().toString(), // 添加时间戳强制刷新
+      forceRefresh: 'true' // 添加强制刷新标记
+    }
+  });
+}
+
 // 提交代码
 const submitCode = async () => {
   // 与运行代码类似，但调用提交API
@@ -452,19 +466,87 @@ const submitCode = async () => {
     
     console.log('提交数据:', submitData);
     
-    // 在实际应用中，这里应当调用API
-    // const res = await submissionApi.submitProgram(submitData);
+    // 调用提交API
+    const res = await submissionApi.submitProgram(submitData);
     
-    // 模拟提交成功
-    setTimeout(() => {
-      ElMessage.success('代码提交成功，评测中...');
-      // 这里应该跳转到提交结果页面或显示提交结果
-    }, 1000);
+    if (res.code === 0) {
+      // 获取提交ID
+      const submissionId = res.data?.id
+      
+      if (submissionId) {
+        // 存储当前提交的ID
+        latestSubmissionId.value = submissionId
+        
+        // 显示提交成功消息
+        ElMessage.success('代码提交成功，正在评测...')
+        
+        // 开始轮询结果
+        setTimeout(() => {
+          pollSubmissionResult(submissionId)
+        }, 1000)
+      } else {
+        ElMessage.warning('提交成功，但未返回评测ID')
+      }
+    } else {
+      ElMessage.error(res.message || '提交失败')
+    }
   } catch (error) {
-    console.error('提交代码异常:', error);
-    ElMessage.error('提交失败，请稍后重试');
+    console.error('提交代码出错:', error)
+    ElMessage.error('提交失败，请稍后重试')
   }
 };
+
+// 轮询提交结果
+const pollSubmissionResult = async (submissionId: number) => {
+  try {
+    const res = await submissionApi.getSubmission(submissionId)
+    if (res.code === 0 && res.data) {
+      const result = res.data
+      console.log('轮询得到的结果:', result)
+      
+      // 如果结果已经出来（状态不是PENDING或JUDGING）
+      if (result.status !== 'PENDING' && result.status !== 'JUDGING') {
+        // 处理最终结果
+        handlePollResult(result)
+      } else {
+        // 继续轮询
+        setTimeout(() => {
+          pollSubmissionResult(submissionId)
+        }, 1000)
+      }
+    } else {
+      console.error('获取提交详情失败:', res.message)
+    }
+  } catch (error) {
+    console.error('轮询提交结果出错:', error)
+  }
+}
+
+// 处理轮询结果
+const handlePollResult = (result: any) => {
+  // 根据评测结果更新UI
+  if (result.status === 'ACCEPTED') {
+    ElMessageBox.confirm('恭喜，您的代码通过了所有测试用例！是否返回题目列表？', '提交成功', {
+      confirmButtonText: '返回题目列表',
+      cancelButtonText: '继续编写',
+      type: 'success'
+    }).then(() => {
+      returnToList()
+    }).catch(() => {
+      // 用户选择继续编写，不做操作
+    })
+  } else if (result.status === 'WRONG_ANSWER') {
+    ElMessageBox.alert('很遗憾，您的代码未通过所有测试用例，请检查代码逻辑后重新提交。', '提交结果', {
+      confirmButtonText: '我知道了',
+      type: 'error'
+    });
+  } else if (result.status?.includes('ERROR')) {
+    ElMessageBox.alert(`您的代码执行出错: ${result.message || '未知错误'}`, '提交结果', {
+      confirmButtonText: '我知道了',
+      type: 'warning'
+    });
+  }
+}
 
 // 加载题目数据
 const loadProblem = async (id?: number | string): Promise<void> => {

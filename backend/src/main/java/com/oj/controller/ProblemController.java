@@ -19,13 +19,14 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -159,10 +160,39 @@ public BaseResponse<Boolean> deleteProgramProblem(@RequestParam Long id, HttpSer
      */
     @GetMapping("/list/page")
     @ApiOperation(value = "分页获取题目列表", notes = "支持多条件筛选")
-    public BaseResponse<Page<ProblemVO>> listProblemByPage(ProblemQueryRequest problemQueryRequest, HttpServletRequest request) {
+    public BaseResponse<Page<ProblemVO>> listProblemByPage(ProblemQueryRequest problemQueryRequest, 
+                                                         @RequestParam(required = false) String tag,
+                                                         @RequestParam(required = false) String tagList,
+                                                         HttpServletRequest request) {
         // 获取当前登录用户
         User loginUser = getLoginUser(request);
         long userId = loginUser.getId();
+        
+        // 处理标签参数 - 从tag或tagList中提取标签
+        if (problemQueryRequest.getTags() == null) {
+            problemQueryRequest.setTags(new ArrayList<>());
+        }
+        
+        // 处理单个标签
+        if (StringUtils.isNotBlank(tag)) {
+            log.info("接收到单个标签查询参数: {}", tag);
+            problemQueryRequest.getTags().add(tag);
+        }
+        
+        // 处理多个标签
+        if (StringUtils.isNotBlank(tagList)) {
+            log.info("接收到标签列表查询参数: {}", tagList);
+            String[] tagArray = tagList.split(",");
+            for (String t : tagArray) {
+                if (StringUtils.isNotBlank(t)) {
+                    problemQueryRequest.getTags().add(t.trim());
+                }
+            }
+        }
+        
+        if (!problemQueryRequest.getTags().isEmpty()) {
+            log.info("处理后的标签列表: {}", problemQueryRequest.getTags());
+        }
         
         // 分页查询
         Page<ProblemVO> problemVOPage = problemService.listProblemByPage(problemQueryRequest, userId);
@@ -283,5 +313,16 @@ public BaseResponse<Boolean> deleteProgramProblem(@RequestParam Long id, HttpSer
         User loginUser = getLoginUser(request);
         Page<ProblemVO> problemVOPage = problemService.searchProblemAdvanced(problemSearchRequest, loginUser.getId());
         return ResultUtils.success(problemVOPage);
+    }
+
+    /**
+     * 获取所有标签
+     *
+     * @return 所有标签列表
+     */
+    @GetMapping("/tags/all")
+    public BaseResponse<List<String>> getAllTags() {
+        List<String> tags = problemService.getAllTags();
+        return ResultUtils.success(tags);
     }
 }

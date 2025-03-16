@@ -91,6 +91,22 @@ export const useUserStore = defineStore('user', () => {
     userApi.logout()
   }
 
+  // 更新用户信息
+  const updateUserInfo = async (data: Partial<UserInfo>) => {
+    try {
+      const response: any = await userApi.updateUserInfo(data)
+      if (response) {
+        // 更新成功后重新获取用户信息
+        await getCurrentUser()
+        return { code: 0, data: true }
+      }
+      return { code: 500, message: '更新失败' }
+    } catch (error) {
+      console.error('更新用户信息错误:', error)
+      return { code: 500, message: error instanceof Error ? error.message : '更新失败' }
+    }
+  }
+
   return {
     token,
     currentUser,
@@ -98,6 +114,7 @@ export const useUserStore = defineStore('user', () => {
     setToken,
     login,
     getCurrentUser,
-    logout
+    logout,
+    updateUserInfo
   }
 }) 

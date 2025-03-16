@@ -20,15 +20,58 @@ export interface SubmissionVO {
   score?: number
 }
 
+// 提交详情基础接口
+export interface SubmissionDetailVO {
+  id: number
+  problemId: number
+  problemTitle?: string
+  problemContent?: string
+  problemTags?: string[]
+  userId?: number
+  userName?: string
+  type: string
+  status: string
+  submissionTime: string
+  jobType?: string
+  difficulty?: string
+}
+
+// 选择/判断题提交详情接口
+export interface ChoiceJudgeSubmissionDetailVO extends SubmissionDetailVO {
+  answer: string
+  correctAnswer?: string
+  analysis?: string
+  canViewAnalysis?: boolean
+}
+
+// 编程题提交详情接口
+export interface ProgramSubmissionDetailVO extends SubmissionDetailVO {
+  language: string
+  code: string
+  functionName?: string
+  paramTypes?: string[]
+  returnType?: string
+  timeLimit?: number
+  memoryLimit?: number
+  executeTime?: number
+  memoryUsage?: number
+  errorMessage?: string
+  testcaseResults?: string
+  passedTestCases?: number
+  totalTestCases?: number
+}
+
 // 选择题提交请求
 export interface ChoiceSubmitRequest {
   problemId: number
-  answer: string[] // 选项的标识符列表，如 ['A', 'C']
+  type: 'CHOICE'
+  answer: string
 }
 
 // 判断题提交请求
 export interface JudgeSubmitRequest {
   problemId: number
+  type: 'JUDGE'
   answer: boolean
 }
 
@@ -47,6 +90,10 @@ export interface SubmissionQueryRequest {
   userId?: number
   type?: string
   status?: string
+  difficulty?: string
+  jobType?: string
+  tag?: string
+  keyword?: string
   startTime?: string
   endTime?: string
 }
@@ -55,12 +102,12 @@ export interface SubmissionQueryRequest {
 export const submissionApi = {
   // 提交选择题答案
   submitChoice(data: ChoiceSubmitRequest): Promise<BaseResponse<SubmissionVO>> {
-    return request.post('submission/choice', data)
+    return request.post('submission/choice-judge', data)
   },
   
   // 提交判断题答案
   submitJudge(data: JudgeSubmitRequest): Promise<BaseResponse<SubmissionVO>> {
-    return request.post('submission/judge', data)
+    return request.post('submission/choice-judge', data)
   },
   
   // 提交编程题代码
@@ -68,9 +115,19 @@ export const submissionApi = {
     return request.post('submission/program', data)
   },
   
-  // 获取提交结果
-  getSubmission(id: number): Promise<BaseResponse<SubmissionVO>> {
-    return request.get(`submission/${id}`)
+  // 获取提交详情（通用）
+  getSubmission(id: number): Promise<BaseResponse<SubmissionDetailVO>> {
+    return request.get(`submission/detail?submissionId=${id}`)
+  },
+  
+  // 获取选择/判断题提交详情
+  getChoiceJudgeSubmissionDetail(id: number): Promise<BaseResponse<ChoiceJudgeSubmissionDetailVO>> {
+    return request.get(`submission/detail/choice-judge?submissionId=${id}`)
+  },
+  
+  // 获取编程题提交详情
+  getProgramSubmissionDetail(id: number): Promise<BaseResponse<ProgramSubmissionDetailVO>> {
+    return request.get(`submission/detail/program?submissionId=${id}`)
   },
   
   // 获取提交列表
@@ -80,14 +137,32 @@ export const submissionApi = {
   
   // 获取我的提交列表
   getMySubmissionList(params: SubmissionQueryRequest): Promise<BaseResponse<{records: SubmissionVO[], total: number}>> {
-    return request.get('submission/list/my', { params })
+    // 过滤掉undefined, null和空字符串参数
+    const cleanParams: Record<string, any> = { ...params };
+    Object.keys(cleanParams).forEach(key => {
+      const value = cleanParams[key];
+      if (value === undefined || value === null || value === '') {
+        delete cleanParams[key];
+      }
+    });
+    
+    console.log('发送筛选参数:', cleanParams);
+    return request.get('submission/user/list', { params: cleanParams });
   },
 
   // 获取指定题目的提交列表
   getProblemSubmissionList(problemId: number, params?: SubmissionQueryRequest): Promise<BaseResponse<{records: SubmissionVO[], total: number}>> {
-    return request.get(`submission/problem/${problemId}`, { 
-      params: { ...params, problemId } 
-    })
+
+    // 构建请求参数，确保包含userId
+    const queryParams = { 
+      ...params, 
+      problemId,
+    };
+      // 添加调试日志
+  console.log('获取题目提交记录，参数:', queryParams);
+    return request.get('submission/problem/list', { 
+      params: queryParams
+    });
   },
   
   // 获取用户最近的提交记录

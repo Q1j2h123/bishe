@@ -1,8 +1,6 @@
 package com.oj.model.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -17,7 +15,11 @@ public class Submission {
     private String type; // 提交类型
     private String status; // 提交状态
     private LocalDateTime submissionTime; // 提交时间
-    private LocalDateTime createTime; // 创建时间
-    private LocalDateTime updateTime; // 更新时间
+    @TableField(value = "createTime", fill = FieldFill.INSERT) // 自动填充
+    private LocalDateTime createTime;
+
+    @TableField(value = "updateTime", fill = FieldFill.INSERT_UPDATE) // 自动填充
+    private LocalDateTime updateTime;
+
     private Integer isDelete; // 是否删除
 } 

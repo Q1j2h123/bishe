@@ -1,5 +1,6 @@
 import request from '@/utils/request'
 import type { BaseResponse } from '@/types/response'
+import { problemStatusApi } from './problem-status'
 
 
 // 基础问题类型
@@ -53,6 +54,19 @@ export interface ProblemVO extends BaseProblem {
   }>;
   acceptCount?: number;
   submitCount?: number;
+  isMultiple?: boolean; // 是否为多选题，用于选择题区分单选和多选
+}
+
+// 扩展接口以包含状态
+export interface ProblemWithStatusVO extends ProblemVO {
+  userStatus?: string // 用户题目状态: UNSOLVED, ATTEMPTED, SOLVED
+  displayId?: number  // 用于在列表中显示的序号
+}
+
+// 扩展ProblemQueryRequest类型，添加强制刷新参数
+export interface ProblemQueryRequestExt extends ProblemQueryRequest {
+  forceRefresh?: boolean;
+  userStatus?: string; // 添加userStatus字段用于题目状态查询
 }
 
 // 题目查询请求
@@ -68,6 +82,8 @@ export interface ProblemQueryRequest {
   userId?: number;
   tags?: string[];
   status?: string;
+  tag?: string; // 单标签查询参数，兼容后端接口
+  userStatus?: string; // 添加userStatus字段，用于扩展查询
 }
 
 // 选择题添加请求
@@ -163,28 +179,66 @@ export interface ProgramProblemUpdateRequest {
 export const problemApi = {
   // 获取题目列表
   getProblemList(params: ProblemQueryRequest): Promise<BaseResponse<{records: ProblemVO[], total: number}>> {
-    // 复制参数，避免修改原始对象
-    const queryParams: Record<string, any> = { ...params };
+    console.log('原始查询参数:', params);
     
-    // 特殊处理标签参数，将数组转为字符串
-    if (queryParams.tags && Array.isArray(queryParams.tags) && queryParams.tags.length > 0) {
-      queryParams.tagList = queryParams.tags.join(',');
-      delete queryParams.tags; // 删除原始tags参数
+    // 创建一个新的参数对象
+    const queryParams: Record<string, any> = {};
+    
+    // 添加基本分页参数
+    if (params.current) queryParams.current = params.current;
+    if (params.pageSize) queryParams.pageSize = params.pageSize;
+    
+    // 添加其他有效查询参数
+    if (params.searchText) queryParams.searchText = params.searchText;
+    if (params.type) queryParams.type = params.type;
+    if (params.jobType) queryParams.jobType = params.jobType;
+    
+    // 注意：不传递status参数给后端API
+    // 我们会获取所有题目，然后在前端根据userStatus进行筛选
+    // 这样可以避免后端查询返回空结果的问题
+    // if (params.status) queryParams.status = params.status;
+    
+    // 如果请求中包含forceRefresh参数，将其设置为true
+    if ('forceRefresh' in params) {
+      queryParams.forceRefresh = true;
     }
     
-    // 处理难度参数 - 将中文难度转换为后端期望的英文大写格式
-    if (queryParams.difficulty) {
+    // 处理难度参数
+    if (params.difficulty) {
       const difficultyMap: Record<string, string> = {
         '简单': 'EASY',
         '中等': 'MEDIUM',
         '困难': 'HARD'
       };
       
-      if (difficultyMap[queryParams.difficulty]) {
-        queryParams.difficulty = difficultyMap[queryParams.difficulty];
+      queryParams.difficulty = difficultyMap[params.difficulty] || params.difficulty;
+    }
+    
+    // 特殊处理标签参数
+    if (params.tags && Array.isArray(params.tags) && params.tags.length > 0) {
+      console.log('处理标签参数:', params.tags);
+      
+      // 对每个标签进行清理
+      const cleanTags = params.tags.map(tag => String(tag).replace(/["'\[\]{}]/g, '').trim());
+      console.log('清理后的标签:', cleanTags);
+      
+      // 如果只有一个标签，使用tag参数
+      if (cleanTags.length === 1) {
+        queryParams.tag = cleanTags[0];
+        console.log('单个标签查询参数:', queryParams.tag);
+      } else {
+        // 多个标签直接传递tags数组
+        queryParams.tags = cleanTags;
+        console.log('多标签查询参数:', queryParams.tags);
       }
     }
     
+    // 单独处理tag参数
+    if (params.tag) {
+      queryParams.tag = String(params.tag).replace(/["'\[\]{}]/g, '').trim();
+    }
+    
+    console.log('最终请求参数:', queryParams);
     return request.get('problem/list/page', { params: queryParams });
   },
   
@@ -329,5 +383,344 @@ export const problemApi = {
     return request.post('problem/status/update', null, { 
       params: { problemId, status } 
     });
+  },
+  
+  // 获取所有标签
+  getAllTags(): Promise<BaseResponse<string[]>> {
+    return request.get('problem/tags/all');
   }
 };
+
+// 缓存完整的筛选后数据，用于分页
+let cachedFilteredResults: ProblemWithStatusVO[] = [];
+let cachedFilterStatus: string = '';
+let cachedTotalCount: number = 0;
+
+// 添加获取带状态的题目列表方法
+export async function getProblemsWithStatus(params: ProblemQueryRequestExt): Promise<BaseResponse<{records: ProblemWithStatusVO[], total: number}>> {
+  console.log('开始获取带状态的题目列表:', params);
+  
+  // 创建请求ID，带页码信息便于调试
+  const requestId = `problem_req_${Date.now()}_page${params.current || 1}`;
+  console.log(`[${requestId}] 开始处理请求`);
+  
+  // 保存状态筛选条件供本地过滤使用
+  const statusFilter = params.userStatus || params.status || '';
+  console.log(`[${requestId}] 状态筛选条件:`, statusFilter);
+  
+  // 获取当前分页参数
+  const currentPage = params.current || 1;
+  const pageSize = params.pageSize || 10;
+  
+  // 检查是否可以使用缓存的筛选结果进行分页
+  if (cachedFilteredResults.length > 0 && 
+      statusFilter === cachedFilterStatus && 
+      !params.forceRefresh &&
+      statusFilter) {
+    console.log(`[${requestId}] 使用缓存的筛选结果进行分页, 总数据量: ${cachedFilteredResults.length}`);
+    
+    // 计算当前页的起始和结束索引
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, cachedFilteredResults.length);
+    
+    // 获取当前页的数据
+    const pageRecords = cachedFilteredResults.slice(startIndex, endIndex);
+    console.log(`[${requestId}] 当前页数据 (${startIndex}-${endIndex}): ${pageRecords.length}条`);
+    
+    return {
+      code: 0,
+      data: {
+        records: pageRecords,
+        total: cachedFilteredResults.length
+      },
+      message: '成功',
+      success: true
+    };
+  }
+  
+  // 强制刷新的情况下清除缓存
+  if (params.forceRefresh) {
+    console.log(`[${requestId}] 检测到强制刷新参数，清除所有缓存`);
+    try {
+      localStorage.removeItem('userProblemStatuses');
+      localStorage.removeItem('statusCacheTime');
+      localStorage.removeItem('problem_status_cache');
+      localStorage.removeItem('currentProblemPage');
+      
+      // 清除筛选结果缓存
+      cachedFilteredResults = [];
+      cachedFilterStatus = '';
+      cachedTotalCount = 0;
+      
+      console.log(`[${requestId}] 所有状态相关缓存已清除`);
+    } catch (e) {
+      console.error(`[${requestId}] 清除缓存失败:`, e);
+    }
+    
+    // 记录当前请求的页码
+    try {
+      localStorage.setItem('lastRequestedPage', String(params.current || 1));
+    } catch (e) {
+      console.error(`[${requestId}] 保存页码信息失败:`, e);
+    }
+    
+    // 移除forceRefresh参数，防止传递到后端API
+    const { forceRefresh, ...cleanParams } = params;
+    params = cleanParams as ProblemQueryRequestExt;
+  }
+  
+  // 打印最终传递给API的参数
+  console.log(`[${requestId}] 实际传递给API的查询参数:`, JSON.stringify(params));
+  
+  // 先获取题目列表
+  console.log(`[${requestId}] 请求题目列表，页码: ${params.current}，每页数量: ${params.pageSize || 10}`);
+  let problemsResponse: BaseResponse<{records: ProblemVO[], total: number}> = {
+    code: -1,
+    data: { records: [], total: 0 },
+    message: '获取题目列表失败',
+    success: false
+  };
+  
+  try {
+    problemsResponse = await problemApi.getProblemList(params);
+    console.log(`[${requestId}] 题目列表请求结果:`, problemsResponse);
+    console.log(`[${requestId}] 获取到题目数量:`, problemsResponse.data?.records?.length || 0);
+  } catch (error) {
+    console.error(`[${requestId}] 题目列表请求异常:`, error);
+    return {
+      code: -1,
+      data: { records: [], total: 0 },
+      message: '获取题目列表失败: ' + (error instanceof Error ? error.message : String(error)),
+      success: false
+    };
+  }
+  
+  if (problemsResponse.code !== 0 || !problemsResponse.data || !problemsResponse.data.records?.length) {
+    console.warn(`[${requestId}] 题目列表请求失败或为空，返回原始数据`);
+    return problemsResponse;
+  }
+  
+  // 提取题目ID列表
+  const problemIds = problemsResponse.data.records
+    .map(problem => problem.id)
+    .filter(id => id !== undefined) as number[];
+  
+  console.log(`[${requestId}] 提取的题目ID列表:`, problemIds);
+  
+  if (problemIds.length === 0) {
+    console.warn(`[${requestId}] 题目ID列表为空，返回原始数据`);
+    return problemsResponse;
+  }
+  
+  // 检查用户是否登录，通过检查localStorage中是否有token
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.warn(`[${requestId}] 用户未登录，不获取题目状态，设置所有题目为UNSOLVED`);
+    
+    // 为所有题目设置默认状态为UNSOLVED
+    const recordsWithDefaultStatus = problemsResponse.data.records.map(problem => ({
+      ...problem,
+      userStatus: 'UNSOLVED' // 未登录用户默认显示未解决
+    }));
+    
+    // 基于状态进行本地过滤（如果有状态筛选条件）
+    let filteredRecords = recordsWithDefaultStatus;
+    if (statusFilter) {
+      console.log(`[${requestId}] 未登录状态下，根据状态 "${statusFilter}" 进行本地筛选，筛选前数量: ${recordsWithDefaultStatus.length}`);
+      
+      // 确保状态名称的大小写匹配
+      const normalizedStatusFilter = statusFilter.toUpperCase();
+      
+      filteredRecords = recordsWithDefaultStatus.filter(problem => {
+        const problemStatus = (problem.userStatus || 'UNSOLVED').toUpperCase();
+        return problemStatus === normalizedStatusFilter;
+      });
+      
+      console.log(`[${requestId}] 未登录状态下，筛选后的题目数量: ${filteredRecords.length}, 状态: ${normalizedStatusFilter}`);
+    }
+    
+    return {
+      ...problemsResponse,
+      data: {
+        ...problemsResponse.data,
+        records: filteredRecords,
+        total: statusFilter ? filteredRecords.length : problemsResponse.data.total // 如果有筛选，更新总数
+      }
+    };
+  }
+  
+  try {
+    console.log(`[${requestId}] 开始请求批量题目状态, 题目IDs:`, problemIds);
+    
+    // 在这里添加页面信息到日志，帮助调试
+    console.log(`[${requestId}] 当前页面信息:`, {
+      current: params.current || 1,
+      pageSize: params.pageSize || 10, 
+      problemCount: problemIds.length
+    });
+
+    // 我们总是尝试获取新的状态数据，而不完全依赖缓存
+    // 强制刷新参数传递给getBatchProblemStatus
+    const statusResponse = await problemStatusApi.getBatchProblemStatus(problemIds, !!params.forceRefresh);
+    console.log(`[${requestId}] 获取状态响应:`, statusResponse);
+    
+    // 检查响应
+    if (statusResponse.code !== 0 || !statusResponse.data) {
+      console.warn(`[${requestId}] 状态请求失败或返回空数据`);
+      // 使用默认状态
+      const recordsWithDefaultStatus = problemsResponse.data.records.map(problem => ({
+        ...problem,
+        userStatus: 'UNSOLVED'
+      }));
+      
+      // 基于状态进行本地过滤（如果有状态筛选条件）
+      let filteredRecords = recordsWithDefaultStatus;
+      if (statusFilter) {
+        console.log(`[${requestId}] 状态请求失败情况下，根据状态 "${statusFilter}" 进行本地筛选，筛选前数量: ${recordsWithDefaultStatus.length}`);
+        
+        // 确保状态名称的大小写匹配
+        const normalizedStatusFilter = statusFilter.toUpperCase();
+        
+        filteredRecords = recordsWithDefaultStatus.filter(problem => {
+          const problemStatus = (problem.userStatus || 'UNSOLVED').toUpperCase();
+          return problemStatus === normalizedStatusFilter;
+        });
+        
+        console.log(`[${requestId}] 状态请求失败情况下，筛选后的题目数量: ${filteredRecords.length}, 状态: ${normalizedStatusFilter}`);
+      }
+      
+      return {
+        ...problemsResponse,
+        data: {
+          ...problemsResponse.data,
+          records: filteredRecords,
+          total: statusFilter ? filteredRecords.length : problemsResponse.data.total // 如果有筛选，更新总数
+        }
+      };
+    }
+    
+    // 获取到状态数据
+    const statusData = statusResponse.data;
+    console.log(`[${requestId}] 成功获取状态数据:`, statusData);
+    
+    // 将状态映射到题目上
+    const recordsWithStatus = problemsResponse.data.records.map(problem => {
+      const problemId = problem.id;
+      
+      // 确保problemId是数字并映射状态
+      let status = 'UNSOLVED'; // 默认状态
+      if (problemId && statusData[problemId]) {
+        status = statusData[problemId];
+        console.log(`[${requestId}] 题目 ${problemId} 的状态: ${status}`);
+      } else {
+        console.log(`[${requestId}] 题目 ${problemId} 没有找到对应状态，使用默认UNSOLVED`);
+      }
+      
+      return {
+        ...problem,
+        userStatus: status
+      };
+    });
+    
+    console.log(`[${requestId}] 最终的带状态题目列表准备完成，页码: ${params.current}，题目数: ${recordsWithStatus.length}`);
+    
+    // 基于状态进行本地过滤（如果有状态筛选条件）
+    let filteredRecords = recordsWithStatus;
+    if (statusFilter) {
+      console.log(`[${requestId}] 根据状态 "${statusFilter}" 进行本地筛选，筛选前数量: ${recordsWithStatus.length}`);
+      
+      // 确保状态名称的大小写匹配
+      const normalizedStatusFilter = statusFilter.toUpperCase();
+      
+      filteredRecords = recordsWithStatus.filter(problem => {
+        const problemStatus = (problem.userStatus || 'UNSOLVED').toUpperCase();
+        const isMatch = problemStatus === normalizedStatusFilter;
+        
+        if (isMatch) {
+          console.log(`[${requestId}] 题目 ${problem.id} 符合状态条件: ${problemStatus}`);
+        }
+        
+        return isMatch;
+      });
+      
+      console.log(`[${requestId}] 筛选后的题目数量: ${filteredRecords.length}, 状态: ${normalizedStatusFilter}`);
+      
+      // 在第一页时，更新缓存的筛选结果
+      if (currentPage === 1) {
+        console.log(`[${requestId}] 更新缓存的筛选结果，总量: ${filteredRecords.length}`);
+        cachedFilteredResults = [...filteredRecords];
+        cachedFilterStatus = statusFilter;
+        cachedTotalCount = filteredRecords.length;
+        
+        // 仅保留当前页数据返回
+        const pageRecords = filteredRecords.slice(0, pageSize);
+        console.log(`[${requestId}] 第一页数据: ${pageRecords.length}条`);
+        
+        return {
+          ...problemsResponse,
+          data: {
+            records: pageRecords,
+            total: filteredRecords.length
+          }
+        };
+      }
+      
+      // 如果筛选后没有结果，打印更多调试信息
+      if (filteredRecords.length === 0) {
+        console.warn(`[${requestId}] 筛选后没有符合状态 ${normalizedStatusFilter} 的题目`);
+        console.log(`[${requestId}] 所有题目的状态:`, recordsWithStatus.map(p => ({id: p.id, status: p.userStatus})));
+      }
+    }
+    
+    // 记录结果到localStorage以供调试使用
+    try {
+      localStorage.setItem('lastProblemDataPage', String(params.current));
+      localStorage.setItem('lastProblemDataTime', new Date().toISOString());
+    } catch (e) {
+      console.error(`[${requestId}] 保存调试信息失败:`, e);
+    }
+    
+    // 返回筛选后的结果
+    return {
+      ...problemsResponse,
+      data: {
+        ...problemsResponse.data,
+        records: filteredRecords,
+        total: statusFilter ? filteredRecords.length : problemsResponse.data.total // 如果有筛选，更新总数
+      }
+    };
+  } catch (error) {
+    console.error(`[${requestId}] 获取状态过程中发生异常:`, error);
+    
+    // 出现异常时也为所有题目设置默认状态
+    const recordsWithDefaultStatus = problemsResponse.data.records.map(problem => ({
+      ...problem,
+      userStatus: 'UNSOLVED' // 设置默认状态
+    }));
+    
+    // 基于状态进行本地过滤（如果有状态筛选条件）
+    let filteredRecords = recordsWithDefaultStatus;
+    if (statusFilter) {
+      console.log(`[${requestId}] 异常情况下，根据状态 "${statusFilter}" 进行本地筛选，筛选前数量: ${recordsWithDefaultStatus.length}`);
+      
+      // 确保状态名称的大小写匹配
+      const normalizedStatusFilter = statusFilter.toUpperCase();
+      
+      filteredRecords = recordsWithDefaultStatus.filter(problem => {
+        const problemStatus = (problem.userStatus || 'UNSOLVED').toUpperCase();
+        return problemStatus === normalizedStatusFilter;
+      });
+      
+      console.log(`[${requestId}] 异常情况下，筛选后的题目数量: ${filteredRecords.length}, 状态: ${normalizedStatusFilter}`);
+    }
+    
+    return {
+      ...problemsResponse,
+      data: {
+        ...problemsResponse.data,
+        records: filteredRecords,
+        total: statusFilter ? filteredRecords.length : problemsResponse.data.total // 如果有筛选，更新总数
+      }
+    };
+  }
+}

@@ -26,6 +26,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .addResourceLocations("classpath:/META-INF/resources/webjars/");
         registry.addResourceHandler("/v2/api-docs-ext/**")
                 .addResourceLocations("classpath:/META-INF/resources/");
+        // 改进上传文件的映射配置，使用绝对路径
+        String uploadPath = System.getProperty("user.dir") + "/uploads/";
+        registry.addResourceHandler("/api/uploads/**")
+                .addResourceLocations("file:" + uploadPath);
     }
 
     @Override
@@ -57,7 +61,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
                     "/api/user/login",
                     "/api/user/register",
                     // 题目相关（仅允许查看公开列表）
-                    "/api/problem/list"
+                    "/api/problem/list",
+                    // 静态资源
+                    "/api/uploads/**"
                 );
     }
 } 

@@ -14,9 +14,9 @@ const router = useRouter()
       <div class="nav-links">
         <el-button text @click="router.push('/home')">首页</el-button>
         <el-button text @click="router.push('/problems')">题目列表</el-button>
-        <el-button text @click="router.push('/submissions')">提交记录</el-button>
+        <el-button text @click="router.push('/my-submissions')">提交记录</el-button>
         <el-button text type="primary">排行榜</el-button>
-        <el-button text @click="router.push('/profile')">个人中心</el-button>
+        <el-button text @click="router.push('/user-center')">个人中心</el-button>
       </div>
     </el-header>
     
