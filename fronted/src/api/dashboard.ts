@@ -34,16 +34,6 @@ export interface ActivityRecord {
   ip: string;
 }
 
-// 系统状态接口
-export interface SystemStatus {
-  cpuUsage: number;           // CPU使用率
-  memoryUsage: number;        // 内存使用率
-  diskUsage: number;          // 磁盘使用率
-  averageResponseTime: number; // 平均响应时间(ms)
-  onlineUsers: number;        // 在线用户数
-  judgeServerStatus: 'up' | 'down' | 'degraded'; // 判题服务器状态
-}
-
 // 提交记录统计接口
 export interface SubmissionStats {
   totalSubmissions: number;   // 总提交数
@@ -67,28 +57,23 @@ export interface HomeStats {
 
 // 仪表盘API
 export const dashboardApi = {
-  // 获取统计数据
+  // 获取管理员统计数据
   getStats(): Promise<BaseResponse<DashboardStats>> {
-    return request.get('admin/dashboard/stats');
+    return request.get('/admin/dashboard/stats');
   },
   
   // 获取最近活动
   getRecentActivities(limit: number = 10): Promise<BaseResponse<ActivityRecord[]>> {
-    return request.get('admin/dashboard/activities', { params: { limit } });
-  },
-  
-  // 获取系统状态
-  getSystemStatus(): Promise<BaseResponse<SystemStatus>> {
-    return request.get('admin/dashboard/system');
+    return request.get('/admin/dashboard/activities', { params: { limit } });
   },
   
   // 获取提交统计
   getSubmissionStats(): Promise<BaseResponse<SubmissionStats>> {
-    return request.get('admin/dashboard/submissions');
+    return request.get('/admin/dashboard/submissions');
   },
 
   // 获取首页统计数据
   getHomeStats(): Promise<BaseResponse<HomeStats>> {
-    return request.get('dashboard/home/stats');
+    return request.get('/dashboard/home/stats');
   }
 }; 

@@ -1,18 +1,29 @@
 package com.oj.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.oj.mapper.ProblemMapper;
 import com.oj.mapper.SubmissionMapper;
 import com.oj.mapper.UserMapper;
+import com.oj.model.entity.Problem;
+import com.oj.model.entity.Submission;
+import com.oj.model.entity.User;
 import com.oj.model.vo.dashboard.*;
 import com.oj.service.DashboardService;
+import com.oj.exception.BusinessException;
+import com.oj.common.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
+import javax.sql.DataSource;
+import com.oj.mapper.UserProblemStatusMapper;
+import com.oj.model.entity.UserProblemStatus;
 
 import javax.annotation.Resource;
-import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
-import java.lang.management.OperatingSystemMXBean;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -30,6 +41,12 @@ public class DashboardServiceImpl implements DashboardService {
     
     @Resource
     private SubmissionMapper submissionMapper;
+    
+    @Resource
+    private UserProblemStatusMapper userProblemStatusMapper;
+
+    @Resource
+    private DataSource dataSource;
 
     /**
      * 获取控制面板统计数据
@@ -38,49 +55,86 @@ public class DashboardServiceImpl implements DashboardService {
     public DashboardStatsVO getStats() {
         DashboardStatsVO statsVO = new DashboardStatsVO();
         
-        try {
-            // 收集实际数据，如果数据库查询报错，使用默认值
-            
-            // 题目总数 - 默认使用模拟数据
-            statsVO.setProblemCount(120);
-            
-            // 用户总数 - 默认使用模拟数据
-            statsVO.setUserCount(580);
-            
-            // 提交总数 - 默认使用模拟数据
-            statsVO.setSubmissionCount(3452);
-            
-            // 通过率 - 默认使用模拟数据
-            statsVO.setPassRate(74.5);
-            
-            // 今日活跃用户 - 默认使用模拟数据
-            statsVO.setTodayActiveUsers(42);
-            
-            // 本周新增用户 - 默认使用模拟数据
-            statsVO.setWeeklyNewUsers(85);
-            
-            // 题目分布 - 默认使用模拟数据
+        // 题目总数
+        long problemCount = problemMapper.selectCount(null);
+        statsVO.setProblemCount((int) problemCount);
+        
+        // 用户总数
+        long userCount = userMapper.selectCount(null);
+        statsVO.setUserCount((int) userCount);
+        
+        // 提交总数
+        long submissionCount = submissionMapper.selectCount(null);
+        statsVO.setSubmissionCount((int) submissionCount);
+        
+        // 通过率 - 使用user_problem_status表中的SOLVED状态  做的对题目数 / 提交的总次数
+        QueryWrapper<UserProblemStatus> solvedWrapper = new QueryWrapper<>();
+        solvedWrapper.eq("status", "SOLVED");
+        long solvedCount = userProblemStatusMapper.selectCount(solvedWrapper);
+        
+        // 计算通过率 = 已解决的题目数 / 总提交次数
+        double passRate = submissionCount > 0 ? (solvedCount * 100.0 / submissionCount) : 0;
+        statsVO.setPassRate(Math.round(passRate * 10) / 10.0);
+        
+        // 今日活跃用户 - 使用提交记录来判断
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        
+        // 查找今天有提交记录的用户数量
+        QueryWrapper<Submission> todaySubmissionWrapper = new QueryWrapper<>();
+        todaySubmissionWrapper.select("DISTINCT userId")
+                            .ge("submissionTime", todayStart);
+        
+        // 由于没有last_login_time字段，改用今日提交统计作为活跃用户指标
+        List<Object> todayActiveUserIds = submissionMapper.selectObjs(todaySubmissionWrapper);
+        statsVO.setTodayActiveUsers(todayActiveUserIds.size());
+        
+        // 本周新增用户
+        LocalDateTime weekStart = LocalDate.now().minusDays(7).atStartOfDay();
+        
+        QueryWrapper<User> weeklyNewWrapper = new QueryWrapper<>();
+        weeklyNewWrapper.ge("createTime", weekStart);
+        long weeklyNewUsers = userMapper.selectCount(weeklyNewWrapper);
+        statsVO.setWeeklyNewUsers((int) weeklyNewUsers);
+        
+        // 题目分布
             DashboardStatsVO.ProblemDistribution distribution = new DashboardStatsVO.ProblemDistribution();
-            distribution.setChoice(45);
-            distribution.setJudge(35);
-            distribution.setProgram(40);
+        
+        QueryWrapper<Problem> choiceWrapper = new QueryWrapper<>();
+        choiceWrapper.eq("type", "CHOICE");
+        long choiceCount = problemMapper.selectCount(choiceWrapper);
+        distribution.setChoice((int) choiceCount);
+        
+        QueryWrapper<Problem> judgeWrapper = new QueryWrapper<>();
+        judgeWrapper.eq("type", "JUDGE");
+        long judgeCount = problemMapper.selectCount(judgeWrapper);
+        distribution.setJudge((int) judgeCount);
+        
+        QueryWrapper<Problem> programWrapper = new QueryWrapper<>();
+        programWrapper.eq("type", "PROGRAM");
+        long programCount = problemMapper.selectCount(programWrapper);
+        distribution.setProgram((int) programCount);
+        
             statsVO.setProblemDistribution(distribution);
             
-            // 难度分布 - 默认使用模拟数据
+        // 难度分布
             DashboardStatsVO.DifficultyDistribution difficultyDistribution = new DashboardStatsVO.DifficultyDistribution();
-            difficultyDistribution.setEasy(50);
-            difficultyDistribution.setMedium(45);
-            difficultyDistribution.setHard(25);
+        
+        QueryWrapper<Problem> easyWrapper = new QueryWrapper<>();
+        easyWrapper.eq("difficulty", "EASY");
+        long easyCount = problemMapper.selectCount(easyWrapper);
+        difficultyDistribution.setEasy((int) easyCount);
+        
+        QueryWrapper<Problem> mediumWrapper = new QueryWrapper<>();
+        mediumWrapper.eq("difficulty", "MEDIUM");
+        long mediumCount = problemMapper.selectCount(mediumWrapper);
+        difficultyDistribution.setMedium((int) mediumCount);
+        
+        QueryWrapper<Problem> hardWrapper = new QueryWrapper<>();
+        hardWrapper.eq("difficulty", "HARD");
+        long hardCount = problemMapper.selectCount(hardWrapper);
+        difficultyDistribution.setHard((int) hardCount);
+        
             statsVO.setDifficultyDistribution(difficultyDistribution);
-            
-            // TODO: 实际项目中，应该从数据库获取真实数据
-            // Integer problemCount = problemMapper.countAllProblems();
-            // statsVO.setProblemCount(problemCount);
-            // 其他字段同理...
-        } catch (Exception e) {
-            log.error("获取控制面板统计数据出错", e);
-            // 出错时返回默认值
-        }
         
         return statsVO;
     }
@@ -90,114 +144,227 @@ public class DashboardServiceImpl implements DashboardService {
      */
     @Override
     public ActivityRecordVO[] getRecentActivities(Integer limit) {
-        // 模拟数据 - 实际项目中应该从数据库获取
         List<ActivityRecordVO> activities = new ArrayList<>();
         
         try {
-            // TODO: 实际项目中，应该从数据库获取真实数据
-            // List<ActivityEntity> recentActivities = activityMapper.getRecentActivities(limit);
-            // activities = recentActivities.stream().map(this::convertToVO).collect(Collectors.toList());
+            // 每种类型分配记录数量
+            int recordsPerType = limit / 3;
             
-            // 模拟数据
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+            // 获取最近的提交记录
+            QueryWrapper<Submission> submissionWrapper = new QueryWrapper<>();
+            submissionWrapper.orderByDesc("submissionTime");
+            submissionWrapper.last("LIMIT " + recordsPerType);
+            List<Submission> submissions = submissionMapper.selectList(submissionWrapper);
             
-            // 示例活动1
-            ActivityRecordVO activity1 = new ActivityRecordVO();
-            activity1.setId(1L);
-            activity1.setUserId(1L);
-            activity1.setUsername("张三");
-            activity1.setAction("submit");
-            activity1.setTargetType("题目");
-            activity1.setTargetId(1L);
-            activity1.setTargetName("两数之和");
-            activity1.setTime(dateFormat.parse("2023-04-16T10:34:00"));
-            activity1.setIp("192.168.1.1");
-            activities.add(activity1);
+            // 获取最近的题目操作记录（创建、更新）
+            QueryWrapper<Problem> problemWrapper = new QueryWrapper<>();
+            problemWrapper.orderByDesc("updateTime");
+            problemWrapper.eq("isDelete", 0); // 只查询未删除的题目
+            problemWrapper.last("LIMIT " + recordsPerType);
+            List<Problem> problems = problemMapper.selectList(problemWrapper);
             
-            // 示例活动2
-            ActivityRecordVO activity2 = new ActivityRecordVO();
-            activity2.setId(2L);
-            activity2.setUserId(100L);
-            activity2.setUsername("管理员");
-            activity2.setAction("add");
-            activity2.setTargetType("题目");
-            activity2.setTargetId(5L);
-            activity2.setTargetName("合并K个排序链表");
-            activity2.setTime(dateFormat.parse("2023-04-16T09:21:00"));
-            activity2.setIp("192.168.1.100");
-            activities.add(activity2);
+            // 获取最近删除的题目记录 - 使用直接的JDBC方式绕过MyBatis-Plus的逻辑删除过滤
+            List<Problem> deletedProblems = new ArrayList<>();
+            try {
+                // 使用JdbcTemplate直接查询已删除的题目
+                String sql = "SELECT id, title, type, userId, updateTime FROM problem WHERE isDelete = 1 ORDER BY updateTime DESC LIMIT " + recordsPerType;
+                log.info("使用JdbcTemplate直接查询已删除的题目: {}", sql);
+                
+                JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+                List<Map<String, Object>> maps = jdbcTemplate.queryForList(sql);
+                log.info("JdbcTemplate查询结果数量: {}", maps != null ? maps.size() : 0);
+                
+                if (maps != null && !maps.isEmpty()) {
+                    for (Map<String, Object> map : maps) {
+                        Problem problem = new Problem();
+                        problem.setId(getLongValue(map, "id"));
+                        problem.setTitle((String) map.get("title"));
+                        problem.setType((String) map.get("type"));
+                        problem.setUserId(getLongValue(map, "userId"));
+                        
+                        // 安全处理日期类型转换
+                        if (map.get("updateTime") != null) {
+                            try {
+                                // 根据实际数据库返回类型处理
+                                if (map.get("updateTime") instanceof LocalDateTime) {
+                                    problem.setUpdateTime((LocalDateTime) map.get("updateTime"));
+                                } else if (map.get("updateTime") instanceof Date) {
+                                    Date date = (Date) map.get("updateTime");
+                                    problem.setUpdateTime(LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault()));
+                                } else if (map.get("updateTime") instanceof java.sql.Timestamp) {
+                                    java.sql.Timestamp timestamp = (java.sql.Timestamp) map.get("updateTime");
+                                    problem.setUpdateTime(timestamp.toLocalDateTime());
+                                } else {
+                                    log.warn("未知的时间类型: {}", map.get("updateTime").getClass().getName());
+                                }
+                            } catch (Exception e) {
+                                log.error("时间转换出错: {}", e.getMessage());
+                                problem.setUpdateTime(LocalDateTime.now());
+                            }
+                        }
+                        
+                        deletedProblems.add(problem);
+                    }
+                    log.info("成功转换{}条已删除题目记录", deletedProblems.size());
+                } else {
+                    // 如果仍然没有找到记录，执行一个简单的count查询验证是否存在已删除记录
+                    Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM problem WHERE isDelete = 1", Integer.class);
+                    log.warn("未找到已删除的题目记录，数据库中共有{}条已删除记录", count != null ? count : 0);
+                }
+            } catch (Exception e) {
+                log.error("查询已删除题目时出错: {}", e.getMessage(), e);
+            }
             
-            // 更多模拟活动...
-            ActivityRecordVO activity3 = new ActivityRecordVO();
-            activity3.setId(3L);
-            activity3.setUserId(2L);
-            activity3.setUsername("李四");
-            activity3.setAction("register");
-            activity3.setTargetType("系统");
-            activity3.setTargetId(0L);
-            activity3.setTargetName("用户注册");
-            activity3.setTime(dateFormat.parse("2023-04-15T16:45:00"));
-            activity3.setIp("192.168.1.2");
-            activities.add(activity3);
+            log.info("查询活动记录 - 提交数量: {}, 未删除题目数量: {}, 已删除题目数量: {}", 
+                     submissions != null ? submissions.size() : 0,
+                     problems != null ? problems.size() : 0,
+                     deletedProblems != null ? deletedProblems.size() : 0);
             
-            // 限制返回数量
+            // 将提交记录转换为活动记录
+            if (submissions != null && !submissions.isEmpty()) {
+                for (Submission submission : submissions) {
+                    ActivityRecordVO activity = new ActivityRecordVO();
+                    activity.setId(submission.getId());
+                    activity.setUserId(submission.getUserId());
+                    
+                    // 获取用户名
+                    try {
+                        User user = userMapper.selectById(submission.getUserId());
+                        activity.setUsername(user != null ? user.getUserName() : "未知用户");
+                    } catch (Exception e) {
+                        log.error("获取用户信息出错", e);
+                        activity.setUsername("未知用户");
+                    }
+                    
+                    activity.setAction("submit");
+                    activity.setTargetType("题目");
+                    activity.setTargetId(submission.getProblemId());
+                    
+                    // 获取题目名称
+                    try {
+                        Problem problem = problemMapper.selectById(submission.getProblemId());
+                        activity.setTargetName(problem != null ? problem.getTitle() : "未知题目");
+                    } catch (Exception e) {
+                        log.error("获取题目信息出错", e);
+                        activity.setTargetName("未知题目");
+                    }
+                    
+                    // 将LocalDateTime转换为Date
+                    if (submission.getSubmissionTime() != null) {
+                        activity.setTime(Date.from(submission.getSubmissionTime().atZone(ZoneId.systemDefault()).toInstant()));
+                    } else if (submission.getCreateTime() != null) {
+                        activity.setTime(Date.from(submission.getCreateTime().atZone(ZoneId.systemDefault()).toInstant()));
+                    } else {
+                        activity.setTime(new Date()); // 使用当前时间作为默认值
+                    }
+                    
+                    activity.setIp("127.0.0.1"); // 实际应记录用户IP
+                    
+                    activities.add(activity);
+                }
+            }
+            
+            // 将题目操作记录转换为活动记录（添加/更新）
+            if (problems != null && !problems.isEmpty()) {
+                for (Problem problem : problems) {
+                    ActivityRecordVO activity = new ActivityRecordVO();
+                    activity.setId(problem.getId());
+                    activity.setUserId(problem.getUserId());
+                    
+                    // 获取用户名（创建或更新题目的管理员）
+                    try {
+                        User user = userMapper.selectById(problem.getUserId());
+                        activity.setUsername(user != null ? user.getUserName() : "未知用户");
+                    } catch (Exception e) {
+                        log.error("获取用户信息出错", e);
+                        activity.setUsername("未知用户");
+                    }
+                    
+                    // 判断活动类型（创建、更新）
+                    LocalDateTime createTime = problem.getCreateTime();
+                    LocalDateTime updateTime = problem.getUpdateTime();
+                    
+                    if (createTime != null && updateTime != null) {
+                        // 如果创建时间和更新时间相差不到1分钟，视为创建操作
+                        if (createTime.plusMinutes(1).isAfter(updateTime)) {
+                            activity.setAction("add");
+                        } else {
+                            activity.setAction("update");
+                        }
+                    } else {
+                        // 默认为更新
+                        activity.setAction("update");
+                    }
+                    
+                    activity.setTargetType("题目");
+                    activity.setTargetId(problem.getId());
+                    activity.setTargetName(problem.getTitle());
+                    
+                    // 使用更新时间作为活动时间
+                    if (updateTime != null) {
+                        activity.setTime(Date.from(updateTime.atZone(ZoneId.systemDefault()).toInstant()));
+                    } else if (createTime != null) {
+                        activity.setTime(Date.from(createTime.atZone(ZoneId.systemDefault()).toInstant()));
+                    } else {
+                        activity.setTime(new Date());
+                    }
+                    
+                    activity.setIp("127.0.0.1");
+                    activities.add(activity);
+                }
+            }
+            
+            // 将删除的题目记录转换为活动记录
+            if (deletedProblems != null && !deletedProblems.isEmpty()) {
+                log.info("发现{}条已删除题目记录", deletedProblems.size());
+                for (Problem problem : deletedProblems) {
+                    ActivityRecordVO activity = new ActivityRecordVO();
+                    activity.setId(problem.getId());
+                    activity.setUserId(problem.getUserId());
+                    
+                    // 获取用户名（删除题目的管理员）
+                    try {
+                        User user = userMapper.selectById(problem.getUserId());
+                        activity.setUsername(user != null ? user.getUserName() : "未知用户");
+                    } catch (Exception e) {
+                        log.error("获取用户信息出错", e);
+                        activity.setUsername("未知用户");
+                    }
+                    
+                    // 设置为删除操作
+                    activity.setAction("delete");
+                    activity.setTargetType("题目");
+                    activity.setTargetId(problem.getId());
+                    activity.setTargetName(problem.getTitle());
+                    
+                    // 使用更新时间作为删除时间
+                    LocalDateTime updateTime = problem.getUpdateTime();
+                    if (updateTime != null) {
+                        activity.setTime(Date.from(updateTime.atZone(ZoneId.systemDefault()).toInstant()));
+                    } else {
+                        activity.setTime(new Date()); // 默认当前时间
+                    }
+                    
+                    activity.setIp("127.0.0.1");
+                    activities.add(activity);
+                }
+            } else {
+                log.warn("未找到已删除的题目记录");
+            }
+            
+            // 按时间排序，最新的在前面
+            activities.sort((a1, a2) -> a2.getTime().compareTo(a1.getTime()));
+            
+            // 如果超过限制数量，截取
             if (activities.size() > limit) {
                 activities = activities.subList(0, limit);
             }
+            
         } catch (Exception e) {
             log.error("获取最近活动记录出错", e);
-            // 出错时返回空数组
         }
         
         return activities.toArray(new ActivityRecordVO[0]);
-    }
-
-    /**
-     * 获取系统状态
-     */
-    @Override
-    public SystemStatusVO getSystemStatus() {
-        SystemStatusVO statusVO = new SystemStatusVO();
-        
-        try {
-            // 获取系统信息
-            OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
-            MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
-            
-            // CPU使用率 - 这是一个模拟值，实际获取CPU使用率需要更复杂的计算
-            double cpuLoad = osBean.getSystemLoadAverage();
-            double cpuUsage = cpuLoad > 0 ? Math.min(cpuLoad * 10, 100.0) : 45.0; // 默认45%
-            statusVO.setCpuUsage(cpuUsage);
-            
-            // 内存使用率
-            long usedMemory = memoryBean.getHeapMemoryUsage().getUsed();
-            long maxMemory = memoryBean.getHeapMemoryUsage().getMax();
-            double memoryUsage = maxMemory > 0 ? (usedMemory * 100.0 / maxMemory) : 62.0; // 默认62%
-            statusVO.setMemoryUsage(memoryUsage);
-            
-            // 磁盘使用率 - 模拟值
-            statusVO.setDiskUsage(38.0);
-            
-            // 平均响应时间 - 模拟值
-            statusVO.setAverageResponseTime(125);
-            
-            // 在线用户数 - 模拟值，实际应该从在线用户会话统计
-            statusVO.setOnlineUsers(48);
-            
-            // 判题服务器状态 - 模拟值，实际应该检测判题服务器是否正常
-            statusVO.setJudgeServerStatus("up");
-        } catch (Exception e) {
-            log.error("获取系统状态出错", e);
-            // 出错时使用默认值
-            statusVO.setCpuUsage(45.0);
-            statusVO.setMemoryUsage(62.0);
-            statusVO.setDiskUsage(38.0);
-            statusVO.setAverageResponseTime(125);
-            statusVO.setOnlineUsers(48);
-            statusVO.setJudgeServerStatus("up");
-        }
-        
-        return statusVO;
     }
 
     /**
@@ -206,76 +373,86 @@ public class DashboardServiceImpl implements DashboardService {
     @Override
     public SubmissionStatsVO getSubmissionStats() {
         SubmissionStatsVO statsVO = new SubmissionStatsVO();
-        
         try {
-            // 总提交数 - 默认使用模拟数据
-            statsVO.setTotalSubmissions(3452);
-            
-            // 通过的提交数 - 默认使用模拟数据
-            statsVO.setAcceptedSubmissions(2570);
-            
-            // 最近7天的提交数据 - 默认使用模拟数据
+            // 获取总提交数
+            long totalSubmissions = submissionMapper.selectCount(null);
+            statsVO.setTotalSubmissions((int) totalSubmissions);
+
+            // 获取通过的提交数
+            QueryWrapper<Submission> acceptedWrapper = new QueryWrapper<>();
+            acceptedWrapper.eq("status", "ACCEPTED");
+            long acceptedSubmissions = submissionMapper.selectCount(acceptedWrapper);
+            statsVO.setAcceptedSubmissions((int) acceptedSubmissions);
+
+            // 准备近7天的提交时间分布
             List<SubmissionStatsVO.TimeDistribution> timeDistribution = new ArrayList<>();
-            
-            // 生成最近7天的日期
-            Calendar calendar = Calendar.getInstance();
-            SimpleDateFormat dateFormat = new SimpleDateFormat("MM-dd");
+            LocalDate today = LocalDate.now();
             
             for (int i = 6; i >= 0; i--) {
-                calendar.add(Calendar.DAY_OF_MONTH, -1);
-                String date = dateFormat.format(calendar.getTime());
-                
-                SubmissionStatsVO.TimeDistribution dayData = new SubmissionStatsVO.TimeDistribution();
-                dayData.setDate(date);
-                // 随机生成提交数 (实际项目中应该从数据库获取)
-                dayData.setCount(new Random().nextInt(150) + 80);
-                
-                timeDistribution.add(dayData);
+                LocalDate date = today.minusDays(i);
+                LocalDateTime startOfDay = date.atStartOfDay();
+                LocalDateTime endOfDay = date.plusDays(1).atStartOfDay().minusNanos(1);
+
+                QueryWrapper<Submission> dateWrapper = new QueryWrapper<>();
+                dateWrapper.between("submissionTime", startOfDay, endOfDay);
+                long count = submissionMapper.selectCount(dateWrapper);
+
+                SubmissionStatsVO.TimeDistribution dto = new SubmissionStatsVO.TimeDistribution();
+                dto.setDate(date.format(DateTimeFormatter.ofPattern("MM-dd")));
+                dto.setCount((int) count);
+                timeDistribution.add(dto);
             }
-            
-            // 反转列表，使日期按照从早到晚排序
-            Collections.reverse(timeDistribution);
             statsVO.setTimeDistribution(timeDistribution);
             
-            // 语言分布 - 默认使用模拟数据
+            // 获取语言分布
             List<SubmissionStatsVO.LanguageDistribution> languageDistribution = new ArrayList<>();
             
-            SubmissionStatsVO.LanguageDistribution java = new SubmissionStatsVO.LanguageDistribution();
-            java.setLanguage("Java");
-            java.setCount(1200);
-            languageDistribution.add(java);
+            // 查询所有不同的语言类型
+            QueryWrapper<Submission> languageQueryWrapper = new QueryWrapper<>();
+            languageQueryWrapper.select("type", "COUNT(*) as count")
+                                .groupBy("type");
             
-            SubmissionStatsVO.LanguageDistribution python = new SubmissionStatsVO.LanguageDistribution();
-            python.setLanguage("Python");
-            python.setCount(980);
-            languageDistribution.add(python);
+            List<Map<String, Object>> languageCounts = submissionMapper.selectMaps(languageQueryWrapper);
             
-            SubmissionStatsVO.LanguageDistribution cpp = new SubmissionStatsVO.LanguageDistribution();
-            cpp.setLanguage("C++");
-            cpp.setCount(750);
-            languageDistribution.add(cpp);
-            
-            SubmissionStatsVO.LanguageDistribution javascript = new SubmissionStatsVO.LanguageDistribution();
-            javascript.setLanguage("JavaScript");
-            javascript.setCount(430);
-            languageDistribution.add(javascript);
-            
-            SubmissionStatsVO.LanguageDistribution go = new SubmissionStatsVO.LanguageDistribution();
-            go.setLanguage("Go");
-            go.setCount(92);
-            languageDistribution.add(go);
+            // 处理查询结果
+            for (Map<String, Object> map : languageCounts) {
+                String language = (String) map.get("type");
+                Long count = ((Number) map.get("count")).longValue();
+                
+                if (language != null && !language.isEmpty()) {
+                    SubmissionStatsVO.LanguageDistribution dto = new SubmissionStatsVO.LanguageDistribution();
+                    dto.setLanguage(language);
+                    dto.setCount(count.intValue());
+                    languageDistribution.add(dto);
+                }
+            }
             
             statsVO.setLanguageDistribution(languageDistribution);
             
-            // TODO: 实际项目中，应该从数据库获取真实数据
-            // Integer totalSubmissions = submissionMapper.countAllSubmissions();
-            // statsVO.setTotalSubmissions(totalSubmissions);
-            // 其他字段同理...
         } catch (Exception e) {
             log.error("获取提交统计出错", e);
-            // 出错时返回默认值的空对象
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "获取提交统计失败");
         }
-        
         return statsVO;
+    }
+
+    // 辅助方法：安全地获取Long值
+    private Long getLongValue(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Long) {
+            return (Long) value;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        try {
+            return Long.valueOf(value.toString());
+        } catch (Exception e) {
+            log.error("转换Long值出错: {}, 值: {}", e.getMessage(), value);
+            return null;
+        }
     }
 } 

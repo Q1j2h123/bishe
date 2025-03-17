@@ -46,7 +46,11 @@ export const useUserStore = defineStore('user', () => {
       }
       
       // 设置令牌
+      console.log('Store中设置token:', userToken)
       setToken(userToken)
+      
+      // 确认localStorage中已经设置token
+      console.log('确认localStorage token:', localStorage.getItem('token'))
       
       // 设置用户信息
       if (user) {
@@ -59,6 +63,8 @@ export const useUserStore = defineStore('user', () => {
           userRole: user.userRole || 'user',
           createTime: new Date().toISOString() // 后端没有返回创建时间，使用当前时间代替
         })
+      } else {
+        console.error('响应中缺少用户信息:', response)
       }
       
       return response

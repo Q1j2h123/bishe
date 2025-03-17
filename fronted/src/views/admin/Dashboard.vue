@@ -9,7 +9,7 @@
     
     <!-- 关键指标统计卡片 -->
     <el-row :gutter="20">
-      <el-col :xs="24" :sm="12" :md="8" :lg="6">
+      <el-col :xs="24" :sm="12" :md="8" :lg="8">
         <el-card class="stat-card" shadow="hover">
           <template #header>
             <div class="card-header">
@@ -44,7 +44,7 @@
         </el-card>
       </el-col>
       
-      <el-col :xs="24" :sm="12" :md="8" :lg="6">
+      <el-col :xs="24" :sm="12" :md="8" :lg="8">
         <el-card class="stat-card" shadow="hover">
           <template #header>
             <div class="card-header">
@@ -79,7 +79,7 @@
         </el-card>
       </el-col>
       
-      <el-col :xs="24" :sm="12" :md="8" :lg="6">
+      <el-col :xs="24" :sm="12" :md="8" :lg="8">
         <el-card class="stat-card" shadow="hover">
           <template #header>
             <div class="card-header">
@@ -92,55 +92,14 @@
             <div class="stat-description">用户提交总次数</div>
             <div class="progress-bar-container">
               <div class="progress-label">
-                通过率: {{ (submissionStats.acceptedSubmissions / (submissionStats.totalSubmissions || 1) * 100).toFixed(1) }}%
+                通过率: {{ stats.passRate }}%
               </div>
               <el-progress 
-                :percentage="calculatePercentage(submissionStats.acceptedSubmissions, submissionStats.totalSubmissions)"
+                :percentage="stats.passRate"
                 :format="() => ''"
                 :stroke-width="8"
                 status="success"
               />
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      
-      <el-col :xs="24" :sm="12" :md="8" :lg="6">
-        <el-card class="stat-card" shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <span>系统状态</span>
-              <el-icon class="icon"><Monitor /></el-icon>
-            </div>
-          </template>
-          <div class="card-content">
-            <div class="system-status">
-              <div class="status-item">
-                <span class="status-label">CPU</span>
-                <el-progress 
-                  :percentage="systemStatus.cpuUsage || 0" 
-                  :stroke-width="8"
-                  :color="getStatusColor(systemStatus.cpuUsage)"
-                />
-              </div>
-              <div class="status-item">
-                <span class="status-label">内存</span>
-                <el-progress 
-                  :percentage="systemStatus.memoryUsage || 0" 
-                  :stroke-width="8"
-                  :color="getStatusColor(systemStatus.memoryUsage)"
-                />
-              </div>
-              <div class="status-item">
-                <span class="status-label">响应时间</span>
-                <span>{{ systemStatus.averageResponseTime || 0 }}ms</span>
-              </div>
-              <div class="judge-status">
-                <span class="status-label">判题服务</span>
-                <el-tag :type="getJudgeStatusType(systemStatus.judgeServerStatus)">
-                  {{ getJudgeStatusText(systemStatus.judgeServerStatus) }}
-                </el-tag>
-              </div>
             </div>
           </div>
         </el-card>
@@ -226,13 +185,13 @@
 import * as echarts from 'echarts'
 import { ref, reactive, onMounted, watch } from 'vue'
 import { 
-  Document, User, Check, Monitor, Refresh, 
+  Document, User, Check, Refresh, 
   ArrowUp, ArrowDown
 } from '@element-plus/icons-vue'
 import { dashboardApi } from '@/api/dashboard'
 import type { 
   DashboardStats, ActivityRecord, 
-  SystemStatus, SubmissionStats 
+  SubmissionStats 
 } from '@/api/dashboard'
 import { ElMessage } from 'element-plus'
 
@@ -263,16 +222,6 @@ const stats = ref<DashboardStats>({
   }
 })
 
-// 系统状态
-const systemStatus = ref<SystemStatus>({
-  cpuUsage: 0,
-  memoryUsage: 0,
-  diskUsage: 0,
-  averageResponseTime: 0,
-  onlineUsers: 0,
-  judgeServerStatus: 'up'
-})
-
 // 提交统计
 const submissionStats = ref<SubmissionStats>({
   totalSubmissions: 0,
@@ -295,18 +244,13 @@ const loadData = async () => {
   loading.value = true
   try {
     // 并行请求多个API
-    const [statsRes, systemRes, submissionRes] = await Promise.all([
+    const [statsRes, submissionRes] = await Promise.all([
       dashboardApi.getStats(),
-      dashboardApi.getSystemStatus(),
       dashboardApi.getSubmissionStats()
     ])
     
     if (statsRes.code === 0 && statsRes.data) {
       stats.value = statsRes.data
-    }
-    
-    if (systemRes.code === 0 && systemRes.data) {
-      systemStatus.value = systemRes.data
     }
     
     if (submissionRes.code === 0 && submissionRes.data) {
@@ -318,9 +262,6 @@ const loadData = async () => {
   } catch (error) {
     console.error('加载控制面板数据失败:', error)
     ElMessage.error('加载数据失败，请稍后重试')
-    
-    // 使用模拟数据作为备用
-    useMockData()
   } finally {
     loading.value = false
   }
@@ -337,9 +278,6 @@ const loadActivities = async () => {
   } catch (error) {
     console.error('加载活动记录失败:', error)
     ElMessage.error('加载活动记录失败，请稍后重试')
-    
-    // 使用模拟活动数据
-    activities.value = getMockActivities()
   } finally {
     activitiesLoading.value = false
   }
@@ -520,6 +458,17 @@ const initLanguageDistributionChart = () => {
   const languages = submissionStats.value.languageDistribution.map(item => item.language)
   const counts = submissionStats.value.languageDistribution.map(item => item.count)
   
+  if (languages.length === 0) {
+    languageChart.setOption({
+      title: {
+        text: '暂无数据',
+        left: 'center',
+        top: 'center'
+      }
+    })
+    return
+  }
+  
   const option = {
     tooltip: {
       trigger: 'item',
@@ -612,101 +561,6 @@ const getActionText = (action: string) => {
 const calculatePercentage = (part: number, total: number) => {
   if (!total) return 0
   return Math.round((part / total) * 100)
-}
-
-// 获取状态颜色
-const getStatusColor = (value: number) => {
-  if (value >= 80) return '#F56C6C'
-  if (value >= 60) return '#E6A23C'
-  return '#67C23A'
-}
-
-// 获取判题服务状态类型
-const getJudgeStatusType = (status: 'up' | 'down' | 'degraded') => {
-  const statusMap: Record<string, string> = {
-    'up': 'success',
-    'down': 'danger',
-    'degraded': 'warning'
-  }
-  return statusMap[status] || 'info'
-}
-
-// 获取判题服务状态文本
-const getJudgeStatusText = (status: 'up' | 'down' | 'degraded') => {
-  const statusMap: Record<string, string> = {
-    'up': '正常运行',
-    'down': '服务中断',
-    'degraded': '服务降级'
-  }
-  return statusMap[status] || '未知状态'
-}
-
-// 使用模拟数据（后端API异常时的备用方案）
-const useMockData = () => {
-  stats.value = {
-    problemCount: 120,
-    userCount: 580,
-    submissionCount: 3452,
-    passRate: 74.5,
-    todayActiveUsers: 42,
-    weeklyNewUsers: 85,
-    problemDistribution: {
-      choice: 45,
-      judge: 35,
-      program: 40
-    },
-    difficultyDistribution: {
-      easy: 50,
-      medium: 45,
-      hard: 25
-    }
-  }
-  
-  systemStatus.value = {
-    cpuUsage: 45,
-    memoryUsage: 62,
-    diskUsage: 38,
-    averageResponseTime: 125,
-    onlineUsers: 48,
-    judgeServerStatus: 'up'
-  }
-  
-  submissionStats.value = {
-    totalSubmissions: 3452,
-    acceptedSubmissions: 2570,
-    timeDistribution: [
-      { date: '04-10', count: 120 },
-      { date: '04-11', count: 132 },
-      { date: '04-12', count: 101 },
-      { date: '04-13', count: 134 },
-      { date: '04-14', count: 90 },
-      { date: '04-15', count: 230 },
-      { date: '04-16', count: 210 }
-    ],
-    languageDistribution: [
-      { language: 'Java', count: 1200 },
-      { language: 'Python', count: 980 },
-      { language: 'C++', count: 750 },
-      { language: 'JavaScript', count: 430 },
-      { language: 'Go', count: 92 }
-    ]
-  }
-}
-
-// 获取模拟活动数据
-const getMockActivities = (): ActivityRecord[] => {
-  return [
-    { id: 1, userId: 1, username: '张三', action: 'submit', targetType: '题目', targetId: 1, targetName: '两数之和', time: '2023-04-16T10:34:00', ip: '192.168.1.1' },
-    { id: 2, userId: 100, username: '管理员', action: 'add', targetType: '题目', targetId: 5, targetName: '合并K个排序链表', time: '2023-04-16T09:21:00', ip: '192.168.1.100' },
-    { id: 3, userId: 2, username: '李四', action: 'register', targetType: '系统', targetId: 0, targetName: '用户注册', time: '2023-04-15T16:45:00', ip: '192.168.1.2' },
-    { id: 4, userId: 100, username: '管理员', action: 'update', targetType: '题目', targetId: 3, targetName: '三数之和', time: '2023-04-15T14:30:00', ip: '192.168.1.100' },
-    { id: 5, userId: 100, username: '管理员', action: 'update', targetType: '系统', targetId: 0, targetName: '系统优化', time: '2023-04-14T13:20:00', ip: '192.168.1.100' },
-    { id: 6, userId: 3, username: '王五', action: 'submit', targetType: '题目', targetId: 2, targetName: '字符串反转', time: '2023-04-14T11:15:00', ip: '192.168.1.3' },
-    { id: 7, userId: 4, username: '赵六', action: 'submit', targetType: '题目', targetId: 3, targetName: '三数之和', time: '2023-04-13T16:40:00', ip: '192.168.1.4' },
-    { id: 8, userId: 5, username: '钱七', action: 'submit', targetType: '题目', targetId: 1, targetName: '两数之和', time: '2023-04-13T14:22:00', ip: '192.168.1.5' },
-    { id: 9, userId: 6, username: '孙八', action: 'register', targetType: '系统', targetId: 0, targetName: '用户注册', time: '2023-04-12T10:10:00', ip: '192.168.1.6' },
-    { id: 10, userId: 7, username: '周九', action: 'login', targetType: '系统', targetId: 0, targetName: '用户登录', time: '2023-04-12T09:05:00', ip: '192.168.1.7' }
-  ]
 }
 
 // 监听窗口大小变化，重绘图表
@@ -881,30 +735,5 @@ onMounted(() => {
 .activity-content {
   flex: 1;
   color: #606266;
-}
-
-.system-status {
-  width: 100%;
-}
-
-.status-item {
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.status-label {
-  margin-right: 10px;
-  width: 80px;
-  text-align: left;
-  color: #606266;
-}
-
-.judge-status {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 15px;
 }
 </style>

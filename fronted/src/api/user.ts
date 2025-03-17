@@ -26,7 +26,6 @@ export interface LoginResponse {
   }
   token: string
 }
-
 export const userApi = {
   // 用户登录
   async login(data: LoginParams) {

@@ -245,13 +245,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search, Timer, Monitor, Document, ChatDotRound, InfoFilled } from '@element-plus/icons-vue'
-import { submissionApi } from '@/api/submission'
+import { submissionApi, type SubmissionVO, type SubmissionQueryRequest } from '@/api/submission'
 import { problemApi } from '@/api/problem'
-import type { SubmissionVO } from '@/api/submission'
 
 // 路由
 const router = useRouter()
@@ -282,7 +281,7 @@ const loadSubmissions = async () => {
   
   try {
     // 构建请求参数，过滤掉undefined和空字符串值
-    const params = {
+    const params: SubmissionQueryRequest = {
       current: currentPage.value,
       pageSize: pageSize.value
     }
@@ -323,7 +322,7 @@ const loadSubmissions = async () => {
     } else {
       ElMessage.error(res.message || '加载提交记录失败');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('加载提交记录异常:', error);
     
     // 添加详细错误信息输出

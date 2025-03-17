@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -301,33 +302,32 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
             log.warn("未能删除具体题型数据或具体题型数据不存在，仍会删除基本题目数据，题目ID: {}, 类型: {}", id, type);
         }
         
-        // 删除题目基本信息 - 使用两种方式确保删除成功
+        // 删除题目基本信息 - 使用逻辑删除
         boolean problemDeleted = false;
         try {
-            // 1. 使用 MyBatis-Plus 的删除方法（支持逻辑删除）
-            problemDeleted = problemMapper.deleteById(id) > 0;
-            log.info("方法1: MybatisPlus删除方法结果: {}", problemDeleted);
+            // 使用UpdateWrapper直接设置字段，确保字段被正确更新
+            com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<Problem> updateWrapper = new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<>();
+            updateWrapper.eq("id", id);
+            updateWrapper.set("isDelete", 1);
+            updateWrapper.set("updateTime", LocalDateTime.now());
             
-            // 2. 如果方法1失败，尝试手动更新 isDelete 字段
-            if (!problemDeleted) {
-                Problem updateProblem = new Problem();
-                updateProblem.setId(id);
-                updateProblem.setIsDelete(1);  // 标记为已删除
-                problemDeleted = problemMapper.updateById(updateProblem) > 0;
-                log.info("方法2: 手动更新isDelete字段结果: {}", problemDeleted);
+            problemDeleted = problemMapper.update(null, updateWrapper) > 0;
+            log.info("使用UpdateWrapper设置isDelete=1标记题目为删除状态, 结果: {}", problemDeleted);
+            
+            if (problemDeleted) {
+                // 刷新缓存，确保能获取到最新删除状态
+                log.info("题目删除完成，已将题目ID: {} 标记为已删除状态", id);
+            } else {
+                // 如果更新失败，最后尝试调用deleteById方法
+                problemDeleted = removeById(id);
+                log.info("使用removeById方法删除题目, 结果: {}", problemDeleted);
             }
         } catch (Exception e) {
             log.error("删除题目基本数据异常, ID: {}, 错误: {}", id, e.getMessage(), e);
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "删除题目失败: " + e.getMessage());
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除题目失败: " + e.getMessage());
         }
         
-        if (!problemDeleted) {
-            log.error("删除题目基本数据失败, ID: {}", id);
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "删除题目失败");
-        }
-        
-        log.info("题目删除完成, ID: {}", id);
-        return true;
+        return problemDeleted;
     }
 
     @Override

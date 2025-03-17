@@ -30,7 +30,7 @@ public class User implements Serializable {
     private String userRole;
 
     @TableField("isDelete")
-//    @TableLogic
+    @TableLogic
     private Integer isDelete;
 
     @TableField(value = "createTime", fill = FieldFill.INSERT) // 自动填充

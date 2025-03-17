@@ -73,7 +73,7 @@ public class Problem {
      * 是否删除
      */
     @TableField("isDelete")
-//    @TableLogic
+    @TableLogic
     private Integer isDelete;
 
     /**

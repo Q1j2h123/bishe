@@ -21,12 +21,6 @@ public interface DashboardService {
     ActivityRecordVO[] getRecentActivities(Integer limit);
 
     /**
-     * 获取系统状态
-     * @return 系统状态VO
-     */
-    SystemStatusVO getSystemStatus();
-
-    /**
      * 获取提交统计
      * @return 提交统计VO
      */
