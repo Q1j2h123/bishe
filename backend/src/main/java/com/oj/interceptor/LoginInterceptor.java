@@ -31,6 +31,8 @@ public class LoginInterceptor implements HandlerInterceptor {
     
     @Resource
     private TokenBlacklistService tokenBlacklistService;
+    
+
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -90,6 +92,8 @@ public class LoginInterceptor implements HandlerInterceptor {
 
             // 设置用户上下文
             UserContext.setUser(user);
+            // 同时设置到UserHolder中
+            UserContext.getUser().setId(userId);
             return true;
         } catch (Exception e) {
             log.error("认证过程发生错误", e);
@@ -102,5 +106,6 @@ public class LoginInterceptor implements HandlerInterceptor {
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
         // 清理用户上下文
         UserContext.clear();
+
     }
 } 

@@ -23,7 +23,7 @@ public class JudgeResult {
     /**
      * 执行时间(ms)
      */
-    private Long executionTime;
+    private Long executeTime;
     
     /**
      * 内存占用(KB)

@@ -129,7 +129,7 @@
             <div class="info-grid">
               <div class="info-row">
                 <div class="info-label">编程语言：</div>
-                <div class="info-value">{{ programSubmission.language || '-' }}</div>
+                <div class="info-value">{{ formatLanguage(programSubmission.language) }}</div>
               </div>
               
               <div class="info-row">
@@ -139,7 +139,7 @@
               
               <div class="info-row">
                 <div class="info-label">内存使用：</div>
-                <div class="info-value">{{ programSubmission.memoryUsage ? `${programSubmission.memoryUsage} MB` : '-' }}</div>
+                <div class="info-value">{{ programSubmission.memoryUsage ? `${Math.round(programSubmission.memoryUsage / 1024)} MB` : '-' }}</div>
               </div>
               
               <div class="info-row">
@@ -166,6 +166,15 @@
             <div v-if="programSubmission.errorMessage" class="error-section">
               <div class="section-title">错误信息</div>
               <pre class="error-block">{{ programSubmission.errorMessage }}</pre>
+            </div>
+            
+            <!-- 标准答案显示 -->
+            <div v-if="programSubmission.standardSolution" class="standard-solution-section">
+              <div class="section-title">标准答案</div>
+              <div v-for="(code, language) in programSubmission.standardSolution" :key="language" class="solution-item">
+                <div class="language-title">{{ formatLanguage(language) }}</div>
+                <pre class="code-block">{{ code }}</pre>
+              </div>
             </div>
           </div>
           
@@ -252,6 +261,27 @@ const loadSubmissionDetail = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 格式化语言
+const formatLanguage = (language: string | undefined): string => {
+  if (!language) return '-'
+  
+  const languageMap: Record<string, string> = {
+    'java': 'Java',
+    'python': 'Python',
+    'python3': 'Python 3',
+    'c': 'C',
+    'cpp': 'C++',
+    'javascript': 'JavaScript',
+    'typescript': 'TypeScript',
+    'go': 'Go',
+    'rust': 'Rust',
+    'c#': 'C#',
+    'php': 'PHP'
+  }
+  
+  return languageMap[language.toLowerCase()] || language
 }
 
 // 格式化类型
@@ -532,5 +562,19 @@ onMounted(() => {
   background-color: #f8f8f8;
   border-radius: 4px;
   line-height: 1.6;
+}
+
+.standard-solution-section {
+  margin-top: 20px;
+}
+
+.solution-item {
+  margin-bottom: 10px;
+}
+
+.language-title {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 5px;
 }
 </style> 

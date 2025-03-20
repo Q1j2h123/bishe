@@ -64,4 +64,13 @@ public interface UserProblemStatusService extends IService<UserProblemStatus> {
      * @return 分页结果
      */
     Page<UserProblemStatusVO> getUserProblemStatusList(Long userId, String status, long current, long size);
+    
+    /**
+     * 强制更新用户题目状态，不考虑"只升不降"规则
+     * @param userId 用户ID
+     * @param problemId 题目ID
+     * @param status 状态
+     * @return 是否更新成功
+     */
+    boolean forceUpdateStatus(Long userId, Long problemId, String status);
 } 

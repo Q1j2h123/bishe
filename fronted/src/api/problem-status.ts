@@ -66,6 +66,36 @@ export const problemStatusApi = {
     return request.get('user/problem-status/list/page', { params })
   },
   
+  // 强制更新用户题目状态
+  forceUpdateStatus(problemId: number, status: string): Promise<BaseResponse<boolean>> {
+    console.log(`强制更新题目 ${problemId} 状态为 ${status}`);
+    
+    // 先清除本地缓存，确保状态一致性
+    try {
+      // 同时移除多个缓存项
+      const cacheKeys = [
+        'userProblemStatuses',
+        'statusCacheTime',
+        'problem_status_cache',
+        'problem_list_cache',
+        'currentProblemPage'
+      ];
+      
+      for (const key of cacheKeys) {
+        localStorage.removeItem(key);
+        console.log(`已清除缓存: ${key}`);
+      }
+    } catch (e) {
+      console.error('清除缓存失败:', e);
+    }
+    
+    // 发起请求
+    return request.post('user/problem-status/force-update', {
+      problemId: problemId,
+      status: status
+    });
+  },
+  
   // 批量获取题目状态
   getBatchProblemStatus(problemIds: number[], forceRefresh: boolean = false): Promise<BaseResponse<Record<number, string>>> {
     // 添加详细日志

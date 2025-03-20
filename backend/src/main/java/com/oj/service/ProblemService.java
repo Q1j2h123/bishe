@@ -168,6 +168,12 @@ public interface ProblemService extends IService<Problem> {
     List<String> getAllTags();
 
     /**
+     * 获取所有岗位类型
+     * @return 岗位类型列表
+     */
+    List<String> getAllJobTypes();
+
+    /**
      * 统计题目总数
      */
     Integer countProblems();

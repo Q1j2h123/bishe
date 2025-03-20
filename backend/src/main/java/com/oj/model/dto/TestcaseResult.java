@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
+
 /**
  * 测试用例执行结果
  */
@@ -12,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TestcaseResult {
+public class TestcaseResult implements Serializable {
     /**
      * 测试用例ID
      */
@@ -52,4 +54,11 @@ public class TestcaseResult {
      * 错误信息
      */
     private String errorMessage;
+
+    /**
+     * 测试用例状态
+     */
+    private String status;
+
+    private static final long serialVersionUID = 1L;
 } 

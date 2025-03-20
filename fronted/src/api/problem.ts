@@ -375,6 +375,7 @@ export const problemApi = {
   
   // 获取每日一题
   getDailyProblem(): Promise<BaseResponse<ProblemVO>> {
+    console.log('请求每日推荐题目')
     return request.get('problem/daily');
   },
   
@@ -388,6 +389,11 @@ export const problemApi = {
   // 获取所有标签
   getAllTags(): Promise<BaseResponse<string[]>> {
     return request.get('problem/tags/all');
+  },
+  
+  // 获取所有岗位类型
+  getAllJobTypes(): Promise<BaseResponse<string[]>> {
+    return request.get('problem/jobTypes/all');
   }
 };
 
@@ -645,30 +651,109 @@ export async function getProblemsWithStatus(params: ProblemQueryRequestExt): Pro
       
       console.log(`[${requestId}] 筛选后的题目数量: ${filteredRecords.length}, 状态: ${normalizedStatusFilter}`);
       
-      // 在第一页时，更新缓存的筛选结果
-      if (currentPage === 1) {
-        console.log(`[${requestId}] 更新缓存的筛选结果，总量: ${filteredRecords.length}`);
-        cachedFilteredResults = [...filteredRecords];
-        cachedFilterStatus = statusFilter;
-        cachedTotalCount = filteredRecords.length;
-        
-        // 仅保留当前页数据返回
-        const pageRecords = filteredRecords.slice(0, pageSize);
-        console.log(`[${requestId}] 第一页数据: ${pageRecords.length}条`);
-        
-        return {
-          ...problemsResponse,
-          data: {
-            records: pageRecords,
-            total: filteredRecords.length
+      // 当有状态筛选时，修改请求策略
+      if (statusFilter) {
+        // 当是第一页或缓存无效时，获取全部数据
+        if (currentPage === 1 || cachedFilteredResults.length === 0 || cachedFilterStatus !== statusFilter) {
+          console.log(`[${requestId}] 需要重新获取所有数据用于状态筛选`);
+          
+          // 临时将页大小设置为较大值，尝试一次获取全部数据
+          const largeRequest = {
+            ...params,
+            current: 1,
+            pageSize: 1000, // 使用一个较大的值
+            forceRefresh: params.forceRefresh || false
+          };
+          
+          // 删除状态相关参数，确保获取所有数据
+          delete largeRequest.status;
+          delete largeRequest.userStatus;
+          
+          console.log(`[${requestId}] 发起大数据量请求:`, largeRequest);
+          
+          try {
+            // 发起请求获取所有数据
+            const allDataResponse = await problemApi.getProblemList(largeRequest);
+            
+            if (allDataResponse.code === 0 && allDataResponse.data) {
+              // 获取所有题目记录
+              const allRecords = allDataResponse.data.records || [];
+              console.log(`[${requestId}] 获取到所有题目: ${allRecords.length}条`);
+              
+              // 获取所有题目的状态
+              const allProblemIds = allRecords.map(p => p.id).filter(id => id !== undefined) as number[];
+              const statusResponse = await problemStatusApi.getBatchProblemStatus(allProblemIds, !!params.forceRefresh);
+              
+              if (statusResponse.code === 0 && statusResponse.data) {
+                // 将状态映射到所有题目
+                const allRecordsWithStatus = allRecords.map(problem => {
+                  const problemId = problem.id;
+                  let status = 'UNSOLVED'; // 默认状态
+                  
+                  if (problemId && statusResponse.data[problemId]) {
+                    status = statusResponse.data[problemId];
+                  }
+                  
+                  return {
+                    ...problem,
+                    userStatus: status
+                  };
+                });
+                
+                // 基于状态筛选所有记录
+                const normalizedStatusFilter = statusFilter.toUpperCase();
+                const allFilteredRecords = allRecordsWithStatus.filter(problem => {
+                  const problemStatus = (problem.userStatus || 'UNSOLVED').toUpperCase();
+                  return problemStatus === normalizedStatusFilter;
+                });
+                
+                console.log(`[${requestId}] 状态筛选后的记录总数: ${allFilteredRecords.length}条`);
+                
+                // 更新缓存
+                cachedFilteredResults = [...allFilteredRecords];
+                cachedFilterStatus = statusFilter;
+                cachedTotalCount = allFilteredRecords.length;
+                
+                // 计算当前页的数据
+                const startIndex = (currentPage - 1) * pageSize;
+                const endIndex = Math.min(startIndex + pageSize, allFilteredRecords.length);
+                const currentPageRecords = allFilteredRecords.slice(startIndex, endIndex);
+                
+                console.log(`[${requestId}] 返回第${currentPage}页数据: ${currentPageRecords.length}条, 范围${startIndex}-${endIndex}`);
+                
+                return {
+                  code: 0,
+                  data: {
+                    records: currentPageRecords,
+                    total: allFilteredRecords.length
+                  },
+                  message: '成功',
+                  success: true
+                };
+              }
+            }
+          } catch (error) {
+            console.error(`[${requestId}] 获取全部数据异常:`, error);
           }
-        };
-      }
-      
-      // 如果筛选后没有结果，打印更多调试信息
-      if (filteredRecords.length === 0) {
-        console.warn(`[${requestId}] 筛选后没有符合状态 ${normalizedStatusFilter} 的题目`);
-        console.log(`[${requestId}] 所有题目的状态:`, recordsWithStatus.map(p => ({id: p.id, status: p.userStatus})));
+        } else {
+          // 使用已有缓存进行分页
+          console.log(`[${requestId}] 使用已有缓存(${cachedFilteredResults.length}条)进行分页`);
+          const startIndex = (currentPage - 1) * pageSize;
+          const endIndex = Math.min(startIndex + pageSize, cachedFilteredResults.length);
+          const pageRecords = cachedFilteredResults.slice(startIndex, endIndex);
+          
+          console.log(`[${requestId}] 从缓存返回第${currentPage}页数据: ${pageRecords.length}条, 范围${startIndex}-${endIndex}`);
+          
+          return {
+            code: 0,
+            data: {
+              records: pageRecords,
+              total: cachedFilteredResults.length
+            },
+            message: '成功',
+            success: true
+          };
+        }
       }
     }
     

@@ -154,6 +154,7 @@ public class SubmissionController {
         if (loginUser == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
+        
         Long userId = loginUser.getId();
         SubmissionDetailVO submissionDetailVO = submissionService.getSubmissionDetail(submissionId, userId);
         return ResultUtils.success(submissionDetailVO);

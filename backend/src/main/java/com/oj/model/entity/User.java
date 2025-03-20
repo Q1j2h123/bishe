@@ -38,4 +38,6 @@ public class User implements Serializable {
 
     @TableField(value = "updateTime", fill = FieldFill.INSERT_UPDATE) // 自动填充
     private LocalDateTime updateTime;
+
+
 }

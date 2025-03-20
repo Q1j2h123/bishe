@@ -325,4 +325,16 @@ public BaseResponse<Boolean> deleteProgramProblem(@RequestParam Long id, HttpSer
         List<String> tags = problemService.getAllTags();
         return ResultUtils.success(tags);
     }
+    
+    /**
+     * 获取所有岗位类型
+     *
+     * @return 所有岗位类型列表
+     */
+    @GetMapping("/jobTypes/all")
+    @ApiOperation(value = "获取所有岗位类型", notes = "获取系统中使用的所有岗位类型")
+    public BaseResponse<List<String>> getAllJobTypes() {
+        List<String> jobTypes = problemService.getAllJobTypes();
+        return ResultUtils.success(jobTypes);
+    }
 }

@@ -68,8 +68,22 @@ const loadProblem = async () => {
       // 根据题目类型初始化对应的草稿功能
       if (problem.value.type === 'PROGRAM') {
         setupProgramDraft()
-      } else {
+      } else if (problem.value.type === 'CHOICE' || problem.value.type === 'JUDGE') {
         setupChoiceJudgeDraft()
+      } else {
+        console.warn('未知题目类型:', problem.value.type)
+      }
+      
+      // 如果是从Home页面点击进来的每日推荐题目，设置标题
+      document.title = `${problem.value.title || '题目详情'} - 面试刷题平台`
+      
+      // 根据题目类型直接导航到对应的详情页面
+      if (problem.value.type === 'CHOICE') {
+        router.replace(`/problem/choice/${id}`)
+      } else if (problem.value.type === 'JUDGE') {
+        router.replace(`/problem/judge/${id}`)
+      } else if (problem.value.type === 'PROGRAM') {
+        router.replace(`/problem/program/${id}`)
       }
     } else {
       ElMessage.error(res.message || '获取题目详情失败')

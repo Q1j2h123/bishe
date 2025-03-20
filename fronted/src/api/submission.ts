@@ -59,6 +59,7 @@ export interface ProgramSubmissionDetailVO extends SubmissionDetailVO {
   testcaseResults?: string
   passedTestCases?: number
   totalTestCases?: number
+  standardSolution?: Record<string, string>
 }
 
 // 选择题提交请求
@@ -111,7 +112,7 @@ export const submissionApi = {
   },
   
   // 提交编程题代码
-  submitProgram(data: ProgramSubmitRequest): Promise<BaseResponse<SubmissionVO>> {
+  submitProgram(data: ProgramSubmitRequest): Promise<BaseResponse<number>> {
     return request.post('submission/program', data)
   },
   

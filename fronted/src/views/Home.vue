@@ -96,6 +96,29 @@ const handleLogout = () => {
   isLoggedIn.value = false
   ElMessage.success('退出登录成功')
 }
+
+// 添加查看每日题目详情的方法
+const viewDailyProblem = () => {
+  if (!dailyProblem.value || !dailyProblem.value.id) {
+    ElMessage.warning('题目信息不完整，无法查看详情')
+    return
+  }
+  
+  const problemId = dailyProblem.value.id
+  const problemType = dailyProblem.value.type
+  
+  // 根据题目类型跳转到对应的详情页面
+  if (problemType === 'CHOICE') {
+    router.push(`/problem/choice/${problemId}`)
+  } else if (problemType === 'JUDGE') {
+    router.push(`/problem/judge/${problemId}`)
+  } else if (problemType === 'PROGRAM') {
+    router.push(`/problem/program/${problemId}`)
+  } else {
+    // 如果类型不确定，先跳转到通用详情页
+    router.push(`/problem/${problemId}`)
+  }
+}
 </script>
 
 <template>
@@ -241,7 +264,7 @@ const handleLogout = () => {
           </div>
           
           <div class="daily-problem-footer">
-            <el-button type="primary" @click="router.push(`/problem/${dailyProblem.id}`)">
+            <el-button type="primary" @click="viewDailyProblem">
               查看详情
             </el-button>
           </div>

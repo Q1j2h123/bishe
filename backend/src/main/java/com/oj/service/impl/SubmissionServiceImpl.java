@@ -2,12 +2,19 @@ package com.oj.service.impl;
 
 import static com.oj.constant.SubmissionConstant.*;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
+import java.util.Map;
+import lombok.extern.slf4j.Slf4j;  // 如果使用了log
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.oj.exception.BusinessException;
 import com.oj.mapper.*;
+import com.oj.model.dto.TestcaseResult;
 import com.oj.model.entity.*;
 import com.oj.model.request.ChoiceJudgeSubmissionRequest;
 import com.oj.model.request.ProgramSubmissionRequest;
@@ -22,7 +29,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
@@ -30,6 +37,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -200,25 +208,16 @@ public class SubmissionServiceImpl extends ServiceImpl<SubmissionMapper, Submiss
         programSubmission.setCode(request.getCode());
         programSubmissionMapper.insert(programSubmission);
         
-        // 使用延迟评测方法，避免事务未提交就执行评测导致的问题
-        delayedJudgeTask(submission.getId());
-        
-        // 更新用户题目状态
-        // 由于是异步评测，这里先标记为ATTEMPTED，评测完成后再更新
-        // 获取当前状态
-        UserProblemStatus existingStatus = userProblemStatusMapper.selectByUserAndProblem(userId, request.getProblemId());
-        
-        // 如果当前状态为空或为UNSOLVED，则更新为ATTEMPTED
-        if (existingStatus == null || USER_STATUS_UNSOLVED.equals(existingStatus.getStatus())) {
-            log.info("提交编程题代码，更新状态为ATTEMPTED: userId={}, problemId={}", userId, request.getProblemId());
-            try {
-                userProblemStatusMapper.upsertStatus(userId, request.getProblemId(), USER_STATUS_ATTEMPTED);
-            } catch (Exception e) {
-                log.error("更新用户编程题状态异常", e);
+        // 在事务提交后执行评测任务
+        Long submissionId = submission.getId();
+        TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    judgeService.submitJudgeTask(submissionId);
+                }
             }
-        } else {
-            log.info("当前题目状态已是 {}，保持不变", existingStatus.getStatus());
-        }
+        );
         
         return submission.getId();
     }
@@ -415,6 +414,12 @@ public class SubmissionServiceImpl extends ServiceImpl<SubmissionMapper, Submiss
                         vo.setJobType(problem.getJobType());
                         // 设置标签
                         vo.setTags(problem.getTags() != null ? Arrays.asList(problem.getTags().split(",")) : new ArrayList<>());
+                    } else {
+                        // 处理题目已删除的情况
+                        vo.setProblemTitle("已删除的题目");
+                        vo.setDifficulty("未知");
+                        vo.setJobType("未知");
+                        vo.setTags(new ArrayList<>());
                     }
                     
                     return vo;
@@ -554,6 +559,13 @@ public class SubmissionServiceImpl extends ServiceImpl<SubmissionMapper, Submiss
             }
             detailVO.setJobType(problem.getJobType());
             detailVO.setDifficulty(problem.getDifficulty());
+        } else {
+            // 如果题目已被删除，设置默认信息
+            detailVO.setProblemTitle("已删除的题目");
+            detailVO.setProblemContent("该题目已被删除");
+            detailVO.setProblemTags(new ArrayList<>());
+            detailVO.setJobType("未知");
+            detailVO.setDifficulty("未知");
         }
         
         // 查询用户信息
@@ -639,6 +651,13 @@ public class SubmissionServiceImpl extends ServiceImpl<SubmissionMapper, Submiss
             }
             detailVO.setJobType(problem.getJobType());
             detailVO.setDifficulty(problem.getDifficulty());
+        } else {
+            // 如果题目已被删除，设置默认信息
+            detailVO.setProblemTitle("已删除的题目");
+            detailVO.setProblemContent("该题目已被删除");
+            detailVO.setProblemTags(new ArrayList<>());
+            detailVO.setJobType("未知");
+            detailVO.setDifficulty("未知");
         }
         
         // 查询用户信息
@@ -666,16 +685,52 @@ public class SubmissionServiceImpl extends ServiceImpl<SubmissionMapper, Submiss
         // 查询提交详情
         ProgramSubmission programSubmission = programSubmissionMapper.selectById(submissionId);
         if (programSubmission != null) {
+            detailVO.setLanguage(programSubmission.getLanguage());
             detailVO.setCode(programSubmission.getCode());
-            detailVO.setErrorMessage(programSubmission.getErrorMessage());
+            detailVO.setExecuteTime(programSubmission.getExecuteTime());
+            detailVO.setMemoryUsage(programSubmission.getMemoryUsage());
             detailVO.setTestcaseResults(programSubmission.getTestcaseResults());
+            detailVO.setErrorMessage(programSubmission.getErrorMessage());
             
-            // 解析测试用例结果，统计通过数量
+            // 计算通过率
             if (programSubmission.getTestcaseResults() != null) {
-                // TODO: 解析JSON字符串，统计通过的测试用例数量
-                // 这里简单模拟，实际应该解析TestcaseResults字符串
-                detailVO.setPassedTestCases(0);
-                detailVO.setTotalTestCases(0);
+                try {
+                    // 简单处理：计算通过的测试用例数
+                    String[] results = programSubmission.getTestcaseResults().split("\n");
+                    int passed = 0;
+                    for (String result : results) {
+                        if (result.trim().startsWith("通过") || result.trim().contains("PASS")) {
+                            passed++;
+                        }
+                    }
+                    detailVO.setPassedTestCases(passed);
+                    detailVO.setTotalTestCases(results.length);
+                } catch (Exception e) {
+                    // 解析失败则不设置值
+                    log.error("解析测试用例结果失败: {}", e.getMessage());
+                }
+            }
+        }
+        
+        // 添加标准答案 - 只有管理员或题目创建者可见
+        if (programProblem != null && programProblem.getStandardSolution() != null && 
+                !programProblem.getStandardSolution().isEmpty()) {
+            // 判断当前用户是否为管理员或题目创建者
+            boolean isAdmin = userService.isAdmin(userId);
+            boolean isCreator = problem != null && userId.equals(problem.getUserId());
+            
+            if (isAdmin || isCreator) {
+                try {
+                    // 将标准答案的JSON字符串转换为Map
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    Map<String, String> standardSolution = objectMapper.readValue(
+                            programProblem.getStandardSolution(),
+                            new TypeReference<Map<String, String>>() {}
+                    );
+                    detailVO.setStandardSolution(standardSolution);
+                } catch (Exception e) {
+                    log.error("解析编程题标准答案失败: {}", e.getMessage());
+                }
             }
         }
         

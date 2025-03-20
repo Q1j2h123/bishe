@@ -60,11 +60,14 @@
             
             <el-select v-model="jobTypeFilter" placeholder="岗位类型" @change="handleFilterChange" clearable class="filter-item">
               <el-option label="全部岗位" value="" />
-              <el-option label="前端" value="FRONTEND" />
-              <el-option label="后端" value="BACKEND" />
-              <el-option label="算法" value="ALGORITHM" />
-              <el-option label="数据库" value="DATABASE" />
-              <el-option label="系统设计" value="SYSTEM_DESIGN" />
+              <el-option 
+                v-for="option in jobTypeOptions" 
+                :key="option.value" 
+                :label="option.label" 
+                :value="option.value"
+              >
+                {{ option.label }}
+              </el-option>
             </el-select>
 
             <el-select 
@@ -274,6 +277,23 @@ const tagFilter = ref('')
 const tagOptions = ref<{label: string, value: string}[]>([
   { label: '全部标签', value: '' }
 ])
+const jobTypeOptions = ref<{label: string, value: string}[]>([])
+
+// 获取所有岗位类型
+const loadAllJobTypes = async () => {
+  try {
+    const res = await problemApi.getAllJobTypes()
+    if (res.code === 0 && res.data) {
+      // 转换后端返回的岗位类型数据为前端格式
+      jobTypeOptions.value = res.data.map(jobType => ({
+        label: formatJobType(jobType),
+        value: jobType
+      }));
+    }
+  } catch (error) {
+    console.error('加载岗位类型列表失败:', error)
+  }
+}
 
 // 加载提交记录数据
 const loadSubmissions = async () => {
@@ -588,6 +608,7 @@ const formatTags = (tags: string[] | string): string[] => {
 onMounted(() => {
   loadSubmissions()
   loadAllTags()
+  loadAllJobTypes()
 })
 </script>
 

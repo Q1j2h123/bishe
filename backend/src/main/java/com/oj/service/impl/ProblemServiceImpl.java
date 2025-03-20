@@ -1603,6 +1603,26 @@ public class ProblemServiceImpl extends ServiceImpl<ProblemMapper, Problem> impl
     }
     
     @Override
+    public List<String> getAllJobTypes() {
+        // 查询所有题目
+        List<Problem> problems = this.list();
+        
+        // 收集所有岗位类型
+        Set<String> jobTypeSet = new HashSet<>();
+        for (Problem problem : problems) {
+            String jobType = problem.getJobType();
+            if (jobType != null && !jobType.isEmpty()) {
+                jobTypeSet.add(jobType.trim());
+            }
+        }
+        
+        // 转换为列表并排序
+        List<String> result = new ArrayList<>(jobTypeSet);
+        Collections.sort(result);
+        return result;
+    }
+    
+    @Override
     public Integer countProblems() {
         // 查询所有题目数量并转为Integer
         return Math.toIntExact(problemMapper.selectCount(null));

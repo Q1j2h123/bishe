@@ -29,7 +29,7 @@ public interface JudgeConstant {
     /**
      * Docker相关
      */
-    String DOCKER_IMAGE_JAVA = "openjdk:11-jdk-slim";
+    String DOCKER_IMAGE_JAVA = "openjdk:8-jdk-alpine";
     String DOCKER_IMAGE_PYTHON = "python:3.9-slim";
     String DOCKER_IMAGE_CPP = "gcc:latest";
     

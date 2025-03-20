@@ -47,15 +47,16 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addInterceptor(loginInterceptor)
                 .addPathPatterns("/**")
                 .excludePathPatterns(
-                    // Swagger相关
-                    "/v2/api-docs",
+                    // Knife4j相关
+                    "/doc.html",
+                    "/webjars/**",
                     "/swagger-resources",
                     "/swagger-resources/**",
+                    "/v2/api-docs",
+                    "/v2/api-docs-ext/**",
                     "/configuration/ui",
                     "/configuration/security",
                     "/swagger-ui.html",
-                    "/webjars/**",
-                    "/doc.html",
                     "/favicon.ico",
                     // 用户相关
                     "/api/user/login",

@@ -7,6 +7,11 @@ import java.io.Serializable;
 @Data
 public class TestCaseDTO implements Serializable {
     /**
+     * 测试用例ID
+     */
+    private Long id;
+    
+    /**
      * 输入数据
      */
     private String input;
@@ -16,10 +21,7 @@ public class TestCaseDTO implements Serializable {
      */
     private String output;
 
-//    /**
-//     * 是否为示例
-//     */
-//    private Boolean isExample;
+
 
     private static final long serialVersionUID = 1L;
 }

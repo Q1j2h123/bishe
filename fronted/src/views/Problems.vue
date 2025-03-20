@@ -31,14 +31,7 @@ const problemTypes = [
   { value: 'PROGRAM', label: '编程题' }
 ]
 
-const positionTypes = [
-  { value: '全栈开发', label: '全栈开发' },
-  { value: '前端开发', label: '前端开发' },
-  { value: '后端开发', label: '后端开发' },
-  { value: '数据库', label: '数据库' },
-  { value: '算法', label: '算法' },
-  { value: '系统设计', label: '系统设计' }
-]
+const positionTypes = ref<{ value: string, label: string }[]>([])
 
 const difficultyOptions = [
   { value: 'EASY', label: '简单' },
@@ -287,6 +280,7 @@ onMounted(() => {
   
   // 加载标签和题目列表
   loadAllTags();
+  loadJobTypes();
   loadProblemList(forceRefresh);
   
   // 设置路由监听
@@ -434,71 +428,62 @@ const resetQuery = () => {
 
 // 处理分页变化
 const handlePageChange = (page: number) => {
-  console.log('页码变化:', page);
-  
   // 更新当前页码参数
   queryParams.current = page;
-  console.log('更新页码后的查询参数:', JSON.stringify(queryParams));
   
-  // 强制清除本地存储的前一页数据
-  try {
-    localStorage.removeItem('currentProblemPage');
-    console.log('清除了当前页面缓存');
-  } catch (e) {
-    console.error('清除缓存失败:', e);
-  }
+  // 检查是否有状态筛选条件，如果有则不强制刷新
+  const hasStatusFilter = !!queryParams.status;
   
   // 从route.query复制所有查询参数，保留当前筛选条件
   const newQuery: Record<string, any> = { ...route.query };
   
   // 更新或添加分页相关参数
   newQuery.current = String(page);
-  newQuery.t = Date.now().toString(); // 添加时间戳，确保每次都是新的URL
-  newQuery.forceRefresh = 'true'; // 始终强制刷新，确保获取正确数据
+  newQuery.t = Date.now().toString();
+  newQuery.forceRefresh = 'true';
+  // 仅在没有状态筛选时强制刷新
+  if (!hasStatusFilter) {
+    newQuery.forceRefresh = 'true';
+  }
   
   // 确保状态筛选参数被保留
   if (queryParams.status) {
     newQuery.status = queryParams.status;
-    newQuery.userStatus = queryParams.status; // 同时设置userStatus确保前端筛选正常工作
-    console.log('保留状态筛选参数:', queryParams.status);
+    newQuery.userStatus = queryParams.status;
   }
   
-  // 添加强制刷新标志以确保状态正确
   router.push({
     path: '/problems',
     query: newQuery
   });
 }
-
 // 处理页大小变化
 const handleSizeChange = (size: number) => {
-  console.log('每页数量变化:', size);
-  queryParams.pageSize = size;
-  queryParams.current = 1; // 重置到第一页
-  
-  // 从route.query复制所有查询参数，保留当前筛选条件
-  const newQuery: Record<string, any> = { ...route.query };
-  
-  // 更新或添加分页相关参数
-  newQuery.pageSize = String(size);
-  newQuery.current = '1';
-  newQuery.t = Date.now().toString(); // 时间戳
-  newQuery.forceRefresh = 'true'; // 强制刷新
-  
-  // 确保状态筛选参数被保留
-  if (queryParams.status) {
-    newQuery.status = queryParams.status;
-    newQuery.userStatus = queryParams.status; // 同时设置userStatus确保前端筛选正常工作
-    console.log('保留状态筛选参数:', queryParams.status);
-  }
-  
-  // 通过路由变化触发重新加载
-  router.push({
-    path: '/problems',
-    query: newQuery
-  });
-}
-
+     queryParams.pageSize = size;
+     queryParams.current = 1; 
+     
+     const hasStatusFilter = !!queryParams.status;
+     const newQuery: Record<string, any> = { ...route.query };
+     
+     newQuery.pageSize = String(size);
+     newQuery.current = '1';
+     newQuery.t = Date.now().toString();
+     
+     // 仅在没有状态筛选时强制刷新
+     if (!hasStatusFilter) {
+       newQuery.forceRefresh = 'true';
+     }
+     
+     if (queryParams.status) {
+       newQuery.status = queryParams.status;
+       newQuery.userStatus = queryParams.status;
+     }
+     
+     router.push({
+       path: '/problems',
+       query: newQuery
+     });
+   }
 // 加载题目列表
 const loadProblemList = async (forceRefresh = false) => {
   console.log('开始加载题目列表, forceRefresh:', forceRefresh);
@@ -784,6 +769,40 @@ const loadAllTags = async () => {
     }
   } catch (error) {
     console.error('加载标签异常:', error);
+  }
+};
+
+// 加载所有岗位类型
+const loadJobTypes = async () => {
+  try {
+    const response = await problemApi.getAllJobTypes();
+    
+    if (response.code === 0 && response.data) {
+      // 将岗位类型转换为下拉框选项格式
+      positionTypes.value = response.data.map(type => ({
+        value: type,
+        label: type
+      }));
+      console.log('获取到的所有岗位类型:', positionTypes.value);
+    } else {
+      ElMessage.warning('获取岗位类型列表失败');
+      // 如果获取失败，设置一些默认值
+      positionTypes.value = [
+        { value: '全栈开发', label: '全栈开发' },
+        { value: '前端开发', label: '前端开发' },
+        { value: '后端开发', label: '后端开发' },
+        { value: '算法', label: '算法' }
+      ];
+    }
+  } catch (error) {
+    console.error('加载岗位类型异常:', error);
+    // 异常情况下也设置默认值
+    positionTypes.value = [
+      { value: '全栈开发', label: '全栈开发' },
+      { value: '前端开发', label: '前端开发' },
+      { value: '后端开发', label: '后端开发' },
+      { value: '算法', label: '算法' }
+    ];
   }
 };
 

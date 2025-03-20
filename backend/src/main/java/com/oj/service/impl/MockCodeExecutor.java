@@ -47,7 +47,7 @@ public class MockCodeExecutor implements CodeExecutor {
                 .success(true)
                 .status(JudgeConstant.STATUS_ACCEPTED)
                 .output(output)
-                .executionTime(50L) // 模拟执行时间50ms
+                .executeTime(50L) // 模拟执行时间50ms
                 .memoryUsage(10240L) // 模拟内存使用10MB
                 .build();
     }

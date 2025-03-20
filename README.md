@@ -1,193 +1,170 @@
-# 在线判题系统 (Online Judge System)
+# OJ在线判题系统
 
-这是一个基于Spring Boot + Vue3的在线判题系统，支持多种题型的判题，包括选择题、判断题和编程题。系统提供完整的用户、题目、提交管理功能，适用于编程教学和面试训练。
+这是一个功能完整的在线编程学习和判题系统，支持多种编程题目类型和自动评判功能。
 
-## 技术栈
+## 项目概述
 
-### 后端
-- Spring Boot 2.7
-- MyBatis-Plus 3.5
-- MySQL 8.0
-- JWT认证
-- 自定义拦截器认证机制
-- Knife4j (API文档)
-- JdbcTemplate
-
-### 前端
-- Vue 3
-- TypeScript
-- Vite
-- Vue Router
-- Pinia (状态管理)
-- Element Plus (UI组件库)
-- Axios (HTTP客户端)
-- ECharts (图表可视化)
-
-## 功能特性
-
-- 用户系统
-  - 用户注册与登录
-  - JWT令牌认证
-  - 用户角色权限管理（普通用户/管理员）
-  - 个人信息管理与头像上传
-
-- 题目系统
-  - 支持多种题型（选择题、判断题、编程题）
-  - 多级难度分类（简单/中等/困难）
-  - 岗位类型分类（前端/后端/算法/数据库等）
-  - 题目标签管理
-
-- 提交与判题
-  - 实时在线判题
-  - 支持多种编程语言
-  - 详细的提交记录与结果分析
-  - 用户解题状态跟踪
-
-- 管理控制台
-  - 系统数据统计仪表盘
-  - 通过率、活跃用户等关键指标
-  - 题目类型与难度分布统计
-  - 最近活动记录
-
-- 错题管理
-  - 用户错题自动收集
-  - 错题重做功能
+该系统是一个面向编程学习者的在线判题平台，支持编程题、判断题和选择题三种题型。系统集成了AI辅助评判功能，支持Java、Python、C++和C四种编程语言，为用户提供代码编写、提交、自动评判和结果分析的完整学习体验。
 
 ## 系统架构
 
-```
-┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-│   前端应用   │ <--> │  后端API服务 │ <--> │ MySQL数据库  │
-└─────────────┘      └─────────────┘      └─────────────┘
-      Vue3              Spring Boot
+系统采用前后端分离架构：
 
-     包含组件:           包含模块:
-   - 登录/注册         - 用户管理
-   - 题目列表/详情     - 题目管理
-   - 提交管理          - 提交处理
-   - 个人中心          - 判题系统
-   - 管理控制台        - 统计分析
-```
+- **后端**：基于Spring Boot构建的RESTful API服务
+- **前端**：使用Vue.js + TypeScript开发的单页面应用
+- **判题系统**：支持本地判题和AI辅助判题两种模式
+- **数据库**：MySQL关系型数据库存储题目、用户、提交记录等信息
 
-## 项目结构
+## 主要功能
 
-```
-oj-project/
-├── backend/                # 后端项目
-│   ├── src/
-│   │   ├── main/java/com/oj/
-│   │   │   ├── annotation/      # 自定义注解
-│   │   │   ├── aop/            # 面向切面编程
-│   │   │   ├── common/         # 通用类
-│   │   │   ├── config/         # 配置类
-│   │   │   ├── constant/       # 常量定义
-│   │   │   ├── controller/     # 控制器
-│   │   │   ├── exception/      # 异常处理
-│   │   │   ├── interceptor/    # 拦截器
-│   │   │   ├── listener/       # 事件监听器
-│   │   │   ├── mapper/         # MyBatis映射器
-│   │   │   ├── model/          # 数据模型
-│   │   │   │   ├── entity/     # 实体类
-│   │   │   │   ├── request/    # 请求DTO
-│   │   │   │   └── vo/         # 视图对象
-│   │   │   ├── service/        # 服务层
-│   │   │   │   └── impl/       # 服务实现
-│   │   │   └── utils/          # 工具类
-│   │   └── resources/         # 资源文件
-│   └── pom.xml               # Maven配置
-└── fronted/                  # 前端项目
-    ├── src/
-    │   ├── api/              # API请求
-    │   ├── assets/           # 静态资源
-    │   ├── components/       # 公共组件
-    │   ├── hooks/            # 自定义钩子
-    │   ├── router/           # 路由配置
-    │   ├── stores/           # Pinia状态
-    │   ├── types/            # TypeScript类型
-    │   ├── utils/            # 工具函数
-    │   └── views/            # 页面视图
-    ├── public/               # 公共资源
-    ├── index.html            # HTML模板
-    ├── package.json          # 项目配置
-    └── vite.config.ts        # Vite配置
-```
+### 用户功能
+- 用户注册、登录和个人信息管理
+- 题目浏览、筛选和搜索
+- 代码在线编辑和提交
+- 查看提交历史和判题结果
+- 草稿代码保存（未实现）
+- 个人学习统计和进度跟踪
 
-## 数据模型
+### 题目功能
+- 支持编程题、判断题和选择题
+- 题目难度分级（简单、中等、困难）
+- 题目分类和标签系统
+- 多语言代码模板
 
-主要实体关系:
-- User (用户): 管理用户账号和权限
-- Problem (题目): 存储所有题目的基本信息
-- Submission (提交): 记录用户的提交信息和结果
-- UserProblemStatus (用户题目状态): 跟踪用户解题状态
+### 判题功能
+- 本地代码执行和结果验证
+- AI辅助代码评估（集成DeepSeek API）
+- 详细的执行结果和错误分析
+- 支持多测试用例判定(有bug)
 
-## 快速开始
+### 管理功能
+- 题目导入（支持Excel和CSV格式）
+- 用户管理和权限控制
+- 系统监控和统计数据
+- 错误题目报告和处理
 
-### 后端启动
+## 技术栈
 
-1. 进入后端目录：
-```bash
-cd backend
-```
+### 后端技术
+- Spring Boot 2.x
+- JWT（用户认证）
+- MyBatis（数据库访问）
+- EasyExcel（Excel处理）
+- 集成AI API（DeepSeek、OpenAI等）
 
-2. 配置数据库：
+### 前端技术
+- Vue.js 3
+- TypeScript
+- Pinia（状态管理）
+- Vue Router（路由管理）
+- 响应式UI设计
+
+## 部署指南
+
+### 环境要求
+- JDK 11+
+- Node.js 16+
+- MySQL 8.0+
+- Maven 3.6+
+
+### 后端部署
+
+1. **克隆代码仓库**
+   ```bash
+   git clone [仓库地址]
+   cd oj-project
+   ```
+
+2. **配置数据库**
    - 创建MySQL数据库
-   - 修改`application.properties`中的数据库配置
+   ```sql
+   CREATE DATABASE oj_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   ```
+   - 修改配置文件 `backend/src/main/resources/application.properties`
+   ```properties
+   spring.datasource.url=jdbc:mysql://localhost:3306/oj_system?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+   spring.datasource.username=你的数据库用户名
+   spring.datasource.password=你的数据库密码
+   ```
 
-3. 启动项目：
-```bash
-mvn spring-boot:run
-```
+3. **配置AI API**
+   - 在配置文件中设置API密钥 `backend/src/main/resources/application.properties`
+   ```properties
+   # AI配置
+   ai.provider=deepseek # 或其他提供商
+   ai.api-key=你的API密钥
+   ai.model=deepseek-chat # 或其他模型
+   ai.api-url=https://api.deepseek.com/v1 # 或其他API地址
+   ```
 
-### 前端启动
+4. **构建并运行后端**
+   ```bash
+   cd backend
+   mvn clean package -DskipTests
+   java -jar target/oj-project-backend.jar
+   ```
 
-1. 进入前端目录：
-```bash
-cd fronted
-```
+### 前端部署
 
-2. 安装依赖：
-```bash
-npm install
-```
+1. **安装依赖**
+   ```bash
+   cd fronted  # 注意项目中使用了fronted而非frontend
+   npm install
+   ```
 
-3. 启动开发服务器：
-```bash
-npm run dev
-```
+2. **配置API地址**
+   - 修改环境配置文件 `.env` 或 `.env.production`
+   ```
+   VITE_API_BASE_URL=http://localhost:8080/api # 或你的API地址
+   ```
 
-## 开发说明
+3. **构建前端**
+   ```bash
+   npm run build
+   ```
+   
+4. **部署静态文件**
+   - 将`dist`目录下的文件部署到Web服务器（Nginx/Apache等）
+   
+### 使用Docker部署（可选）
 
-- 后端API文档访问地址：`http://localhost:8080/doc.html`
-- 前端开发服务器地址：`http://localhost:5173`
+1. **构建后端Docker镜像**
+   ```bash
+   cd backend
+   docker build -t oj-project-backend .
+   ```
 
-## 贡献指南
+2. **构建前端Docker镜像**
+   ```bash
+   cd fronted
+   docker build -t oj-project-frontend .
+   ```
 
-1. Fork 本仓库
-2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交你的更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开一个 Pull Request
+3. **使用docker-compose运行**
+   ```bash
+   docker-compose up -d
+   ```
 
-## 许可证
+## 系统使用
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+### 导入题目
+1. 登录管理员账号
+2. 进入题目管理页面
+3. 选择CSV或Excel导入功能
+4. 上传符合格式的题目文件
 
-## 开发日志
+### 代码提交与评判
+1. 从题目列表选择要练习的题目
+2. 在线编辑代码或使用提供的模板
+3. 选择编程语言并提交代码
+4. 系统将自动评判并返回结果
 
-### 2025-03-16 至 2025-03-17
-1. **后端功能优化**
-   - 修复了已删除题目在管理控制面板中无法正确显示的问题
-   - 优化SQL查询逻辑，解决了查询条件冲突（isDelete=0 AND isDelete=1）
-   - 使用JdbcTemplate绕过MyBatis-Plus的逻辑删除过滤机制
-   - 完善了Problem实体类的TableLogic注解配置
+## 项目维护和贡献
 
-2. **通过率计算逻辑优化**
-   - 修改DashboardServiceImpl中的通过率计算方法
-   - 使用user_problem_status表中的SOLVED状态来计算通过率
-   - 使取得的统计数据更加准确反映用户的解题情况
+欢迎提交Issue和Pull Request来改进项目。在提交代码前，请确保：
 
-3. **前端修复**
-   - 修复前端Dashboard组件显示通过率的问题
-   - 修复前端TypeScript类型错误
-   - 优化登录认证逻辑，添加更详细的错误处理
-   - 改进Vite跨域代理配置，解决认证请求问题
+1. 遵循项目的代码规范
+2. 为新功能编写完整的测试
+3. 更新相关文档
+4. 在PR中详细描述变更内容
+

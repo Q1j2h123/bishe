@@ -14,6 +14,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -134,6 +135,47 @@ public class UserProblemStatusServiceImpl extends ServiceImpl<UserProblemStatusM
         resultPage.setRecords(voList);
         
         return resultPage;
+    }
+    
+    /**
+     * 强制更新用户题目状态，不考虑"只升不降"规则
+     * @param userId 用户ID
+     * @param problemId 题目ID
+     * @param status 状态
+     * @return 是否更新成功
+     */
+    @Override
+    public boolean forceUpdateStatus(Long userId, Long problemId, String status) {
+        log.info("强制更新用户题目状态: userId={}, problemId={}, status={}", userId, problemId, status);
+        
+        try {
+            // 查询是否已有记录
+            LambdaQueryWrapper<UserProblemStatus> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(UserProblemStatus::getUserId, userId)
+                    .eq(UserProblemStatus::getProblemId, problemId);
+            
+            UserProblemStatus userProblemStatus = this.getOne(queryWrapper);
+            
+            if (userProblemStatus == null) {
+                // 没有记录，创建新记录
+                log.info("用户题目状态不存在，创建新记录");
+                userProblemStatus = new UserProblemStatus();
+                userProblemStatus.setUserId(userId);
+                userProblemStatus.setProblemId(problemId);
+                userProblemStatus.setStatus(status);
+                userProblemStatus.setLastSubmitTime(LocalDateTime.now());
+                return this.save(userProblemStatus);
+            } else {
+                // 更新现有记录，无论状态高低
+                log.info("强制更新用户题目状态: {} -> {}", userProblemStatus.getStatus(), status);
+                userProblemStatus.setStatus(status);
+                userProblemStatus.setLastSubmitTime(LocalDateTime.now());
+                return this.updateById(userProblemStatus);
+            }
+        } catch (Exception e) {
+            log.error("强制更新用户题目状态异常", e);
+            return false;
+        }
     }
     
     /**

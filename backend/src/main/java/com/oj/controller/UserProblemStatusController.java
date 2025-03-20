@@ -3,6 +3,8 @@ package com.oj.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.oj.common.BaseResponse;
 import com.oj.common.ResultUtils;
+import com.oj.constant.SubmissionConstant;
+import com.oj.exception.BusinessException;
 import com.oj.model.entity.User;
 import com.oj.model.entity.UserProblemStatus;
 import com.oj.model.vo.UserProblemStatusVO;
@@ -146,5 +148,47 @@ public class UserProblemStatusController {
         Page<UserProblemStatusVO> page = userProblemStatusService.getUserProblemStatusList(
                 loginUser.getId(), status, current, size);
         return ResultUtils.success(page);
+    }
+
+    /**
+     * 强制更新用户题目状态
+     * @param request 请求参数，包含题目ID和状态
+     * @param httpServletRequest HTTP请求
+     * @return 更新结果
+     */
+    @PostMapping("/force-update")
+    public BaseResponse<Boolean> forceUpdateUserProblemStatus(
+            @RequestBody Map<String, Object> request,
+            HttpServletRequest httpServletRequest) {
+        User loginUser = userService.getLoginUser(httpServletRequest);
+        
+        if (request.get("problemId") == null) {
+            throw new BusinessException(40000, "题目ID不能为空");
+        }
+        
+        if (request.get("status") == null) {
+            throw new BusinessException(40000, "状态不能为空");
+        }
+        
+        Long problemId;
+        try {
+            problemId = Long.parseLong(String.valueOf(request.get("problemId")));
+        } catch (NumberFormatException e) {
+            throw new BusinessException(40000, "题目ID格式错误");
+        }
+        
+        String status = String.valueOf(request.get("status"));
+        
+        // 验证状态是否有效
+        if (!SubmissionConstant.USER_STATUS_SOLVED.equals(status) && 
+            !SubmissionConstant.USER_STATUS_ATTEMPTED.equals(status) && 
+            !SubmissionConstant.USER_STATUS_UNSOLVED.equals(status)) {
+            throw new BusinessException(40000, "无效的状态值");
+        }
+        
+        // 调用Service层方法进行更新
+        boolean result = userProblemStatusService.forceUpdateStatus(loginUser.getId(), problemId, status);
+        
+        return ResultUtils.success(result);
     }
 } 
