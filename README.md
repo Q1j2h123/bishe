@@ -33,7 +33,7 @@
 
 ### 判题功能
 - 本地代码执行和结果验证
-- AI辅助代码评估（集成DeepSeek API）
+- AI辅助代码评估（集成DeepSeek API,qwen-turbo API）
 - 详细的执行结果和错误分析
 - 支持多测试用例判定(有bug)
 
@@ -50,7 +50,7 @@
 - JWT（用户认证）
 - MyBatis（数据库访问）
 - EasyExcel（Excel处理）
-- 集成AI API（DeepSeek、OpenAI等）
+- 集成AI API（DeepSeek、OpenAI,qwen-turbo）
 
 ### 前端技术
 - Vue.js 3
