@@ -1,24 +1,33 @@
 package com.oj.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.oj.common.ErrorCode;
 import com.oj.common.UserContext;
 import com.oj.exception.BusinessException;
 import com.oj.mapper.UserMapper;
+import com.oj.model.dto.UserQueryRequest;
 import com.oj.model.entity.User;
 import com.oj.model.dto.UserDTO;
+import com.oj.model.vo.UserListVO;
 import com.oj.model.vo.UserVO;
 import com.oj.model.request.UserUpdateRequest;
 import com.oj.service.TokenBlacklistService;
 import com.oj.service.UserService;
+import com.oj.service.SubmissionService;
+import com.oj.service.UserProblemStatusService;
+import com.oj.model.vo.UserManageVO;
 import com.oj.utils.JwtUtils;
 import com.oj.utils.PasswordUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.util.DigestUtils;
+import com.oj.model.vo.UserProblemStatusVO;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -45,6 +54,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Resource
     private TokenBlacklistService tokenBlacklistService;
+
+    @Resource
+    private SubmissionService submissionService;
+
+    @Resource
+    private UserProblemStatusService userProblemStatusService;
 
     @Override
     public long userRegister(String userAccount, String userPassword, String checkPassword, String userName) {
@@ -151,7 +166,29 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return user != null && "admin".equals(user.getUserRole());
     }
 
-    @Override
+    public Page<UserListVO> listUsers(UserQueryRequest queryRequest) {
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+
+        // 构建查询条件
+        queryWrapper
+                .like(StringUtils.isNotBlank(queryRequest.getUserName()), User::getUserName, queryRequest.getUserName())
+                .like(StringUtils.isNotBlank(queryRequest.getUserAccount()), User::getUserAccount, queryRequest.getUserAccount());
+
+        // 处理排序
+        if ("desc".equalsIgnoreCase(queryRequest.getCreateTimeOrder())) {
+            queryWrapper.orderByDesc(User::getCreateTime);
+        } else {
+            queryWrapper.orderByAsc(User::getCreateTime);
+        }
+
+        // 转换VO
+        Page<User> userPage = page(new Page<>(queryRequest.getCurrent(), queryRequest.getPageSize()), queryWrapper);
+        return (Page<UserListVO>) userPage.convert(user -> {
+            UserListVO vo = new UserListVO();
+            BeanUtils.copyProperties(user, vo);
+            return vo;
+        });
+    }
     public List<UserVO> getUserVOByIds(List<Long> userIds) {
         if (CollectionUtils.isEmpty(userIds)) {
             return new ArrayList<>();
@@ -251,6 +288,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return Math.toIntExact(userMapper.selectCount(null));
     }
 
+
+
+
     @Override
     public boolean updateUser(UserUpdateRequest userUpdateRequest, HttpServletRequest request) {
         if (userUpdateRequest == null) {
@@ -278,4 +318,108 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         
         return this.updateById(user);
     }
+
+    @Override
+    public UserManageVO getUserManageDetail(Long userId) {
+        // 获取用户基本信息
+        UserVO userVO = getUserVO(userId);
+        if (userVO == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在");
+        }
+        
+        // 获取用户实体以获取createTime
+        User user = this.getById(userId);
+        
+        // 构建UserManageVO
+        UserManageVO userManageVO = new UserManageVO();
+        // 复制基本信息
+        userManageVO.setId(userVO.getId());
+        userManageVO.setUserAccount(userVO.getUserAccount());
+        userManageVO.setUserName(userVO.getUserName());
+        userManageVO.setUserAvatar(userVO.getUserAvatar());
+        userManageVO.setUserProfile(userVO.getUserProfile());
+        userManageVO.setUserRole(userVO.getUserRole());
+        userManageVO.setCreateTime(user.getCreateTime());
+        
+        // 获取用户统计信息
+        UserManageVO stats = getUserStats(userId);
+        // 复制统计信息
+        userManageVO.setSubmissionCount(stats.getSubmissionCount());
+        userManageVO.setAcceptedCount(stats.getAcceptedCount());
+        userManageVO.setTotalSolvedCount(stats.getTotalSolvedCount());
+        userManageVO.setAcceptanceRate(stats.getAcceptanceRate());
+        userManageVO.setLastAcceptedProblem(stats.getLastAcceptedProblem());
+        
+        return userManageVO;
+    }
+    @Override
+    public UserManageVO getUserStats(Long userId) {
+        UserManageVO stats = new UserManageVO();
+
+        // 获取提交次数
+        stats.setSubmissionCount(submissionService.countUserSubmissions(userId).intValue());
+
+        // 获取通过题目数
+        stats.setAcceptedCount(userProblemStatusService.countUserSolvedProblems(userId).intValue());
+
+        // 获取总做题数
+        stats.setTotalSolvedCount(userProblemStatusService.countUserAttemptedProblems(userId).intValue());
+
+        // 计算通过率
+        if (stats.getSubmissionCount() > 0) {
+            stats.setAcceptanceRate((double) stats.getAcceptedCount() / stats.getSubmissionCount() * 100);
+        } else {
+            stats.setAcceptanceRate(0.0);
+        }
+
+        // 获取最近通过的题目
+        List<UserProblemStatusVO> solvedProblems = userProblemStatusService.getUserSolvedProblems(userId);
+        if (!solvedProblems.isEmpty()) {
+            // 按最后提交时间倒序排序，获取最近通过的题目
+            solvedProblems.sort((a, b) -> b.getLastSubmitTime().compareTo(a.getLastSubmitTime()));
+            stats.setLastAcceptedProblem(solvedProblems.get(0).getProblemTitle());
+        }
+
+        return stats;
+    }
+
+    @Override
+    public boolean updateUserStatus(Long userId, Integer status) {
+        // 由于没有status字段，我们可以通过userRole来实现类似的功能
+        // 如果status为1（禁用），则将用户角色改为"banned"
+        // 如果status为0（正常），则将用户角色改为"user"
+        User user = this.getById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在");
+        }
+        
+        user.setUserRole(status == 1 ? "banned" : "user");
+        return this.updateById(user);
+    }
+
+    @Override
+    public boolean updateUserRole(Long userId, String role) {
+        User user = this.getById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在");
+        }
+        
+        user.setUserRole(role);
+        return this.updateById(user);
+    }
+
+    @Override
+    public boolean resetUserPassword(Long userId) {
+        User user = this.getById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在");
+        }
+        
+        // 重置为默认密码
+        String defaultPassword = DigestUtils.md5DigestAsHex("123456".getBytes());
+        user.setUserPassword(defaultPassword);
+        return this.updateById(user);
+    }
+
+
 } 

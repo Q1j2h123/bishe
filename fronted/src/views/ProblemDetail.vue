@@ -33,7 +33,7 @@ import { problemApi, type ProblemVO } from '@/api/problem'
 import ChoiceProblemDetail from './ChoiceProblemDetail.vue'
 import JudgeProblemDetail from './JudgeProblemDetail.vue'
 import ProgramProblemDetail from './ProgramProblemDetail.vue'
-import { useAutoSave } from '@/hooks/useAutoSave'
+
 
 // 题目数据
 const problem = ref<ProblemVO | null>(null)
@@ -65,14 +65,14 @@ const loadProblem = async () => {
     if (res.code === 0 && res.data) {
       problem.value = res.data
       
-      // 根据题目类型初始化对应的草稿功能
-      if (problem.value.type === 'PROGRAM') {
-        setupProgramDraft()
-      } else if (problem.value.type === 'CHOICE' || problem.value.type === 'JUDGE') {
-        setupChoiceJudgeDraft()
-      } else {
-        console.warn('未知题目类型:', problem.value.type)
-      }
+      // // 根据题目类型初始化对应的草稿功能
+      // if (problem.value.type === 'PROGRAM') {
+      //   setupProgramDraft()
+      // } else if (problem.value.type === 'CHOICE' || problem.value.type === 'JUDGE') {
+      //   setupChoiceJudgeDraft()
+      // } else {
+      //   console.warn('未知题目类型:', problem.value.type)
+      // }
       
       // 如果是从Home页面点击进来的每日推荐题目，设置标题
       document.title = `${problem.value.title || '题目详情'} - 面试刷题平台`
@@ -96,85 +96,85 @@ const loadProblem = async () => {
   }
 }
 
-// 选择题或判断题的自动保存示例
-const setupChoiceJudgeDraft = () => {
-  if (!problem.value) return
+// // 选择题或判断题的自动保存示例
+// const setupChoiceJudgeDraft = () => {
+//   if (!problem.value) return
   
-  const { 
-    content: savedAnswer, 
-    isDirty, 
-    lastSaved,
-    save
-  } = useAutoSave(
-    problem.value.id || 0,
-    problem.value.type,
-    userAnswer.value,
-    {
-      onSaved: () => {
-        console.log('草稿已保存')
-      },
-      onLoaded: (content) => {
-        userAnswer.value = content
-        ElMessage.info('已加载上次的答案')
-      }
-    }
-  )
+//   const { 
+//     content: savedAnswer, 
+//     isDirty, 
+//     lastSaved,
+//     save
+//   } = useAutoSave(
+//     problem.value.id || 0,
+//     problem.value.type,
+//     userAnswer.value,
+//     {
+//       onSaved: () => {
+//         console.log('草稿已保存')
+//       },
+//       onLoaded: (content) => {
+//         userAnswer.value = content
+//         ElMessage.info('已加载上次的答案')
+//       }
+//     }
+//   )
   
-  // 将自动保存内容与组件状态双向绑定
-  watch(userAnswer, (newValue) => {
-    savedAnswer.value = newValue
-  })
+//   // 将自动保存内容与组件状态双向绑定
+//   watch(userAnswer, (newValue) => {
+//     savedAnswer.value = newValue
+//   })
   
-  // 在组件卸载前保存
-  onBeforeUnmount(() => {
-    save()
-  })
-}
+//   // 在组件卸载前保存
+//   onBeforeUnmount(() => {
+//     save()
+//   })
+// }
 
-// 编程题的自动保存示例
-const setupProgramDraft = () => {
-  if (!problem.value) return
+// // 编程题的自动保存示例
+// const setupProgramDraft = () => {
+//   if (!problem.value) return
   
-  const { 
-    content: savedCode, 
-    language: savedLanguage,
-    isDirty, 
-    lastSaved,
-    save,
-    setLanguage
-  } = useAutoSave(
-    problem.value.id || 0,
-    'PROGRAM',
-    codeContent.value,
-    {
-      onSaved: () => {
-        console.log('代码草稿已保存')
-      },
-      onLoaded: (content) => {
-        codeContent.value = content
-        ElMessage.info('已加载上次编写的代码')
-      }
-    }
-  )
+//   const { 
+//     content: savedCode, 
+//     language: savedLanguage,
+//     isDirty, 
+//     lastSaved,
+//     save,
+//     setLanguage
+//   } = useAutoSave(
+//     problem.value.id || 0,
+//     'PROGRAM',
+//     codeContent.value,
+//     {
+//       onSaved: () => {
+//         console.log('代码草稿已保存')
+//       },
+//       onLoaded: (content) => {
+//         codeContent.value = content
+//         ElMessage.info('已加载上次编写的代码')
+//       }
+//     }
+//   )
   
-  // 设置初始语言
-  setLanguage(selectedLanguage.value)
+//   // 设置初始语言
+//   setLanguage(selectedLanguage.value)
   
-  // 监听代码变化
-  watch(codeContent, (newValue) => {
-    savedCode.value = newValue
-  })
+//   // 监听代码变化
+//   watch(codeContent, (newValue) => {
+//     savedCode.value = newValue
+//   })
   
-  // 监听语言变化
-  watch(selectedLanguage, (newValue) => {
-    setLanguage(newValue)
-  })
+//   // 监听语言变化
+//   watch(selectedLanguage, (newValue) => {
+//     setLanguage(newValue)
+//   })
   
-  // 在组件卸载前保存
-  onBeforeUnmount(() => {
-    save()
-  })
-}
+//   // 在组件卸载前保存
+//   onBeforeUnmount(() => {
+//     save()
+//   })
+// }
 
 // 页面加载时获取题目
 onMounted(() => {

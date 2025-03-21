@@ -1,10 +1,14 @@
 package com.oj.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.oj.model.entity.User;
 import com.oj.model.dto.UserDTO;
 import com.oj.model.vo.UserVO;
+import com.oj.model.vo.UserManageVO;
 import com.oj.model.request.UserUpdateRequest;
+import com.oj.model.dto.UserQueryRequest;
+import com.oj.model.vo.UserListVO;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -102,4 +106,57 @@ public interface UserService extends IService<User> {
      * 统计用户总数
      */
     Integer countUsers();
+
+    /**
+     * 分页查询用户列表
+
+     */
+    Page<UserListVO> listUsers(UserQueryRequest queryRequest);
+//    Page<UserListVO> getUserList(UserQueryRequest userQueryRequest);
+
+    /**
+     * 获取用户管理详情
+     * @param userId 用户ID
+     * @return 用户管理详情
+     */
+    UserManageVO getUserManageDetail(Long userId);
+
+    /**
+     * 更新用户状态
+     * @param userId 用户ID
+     * @param status 状态（0-正常，1-禁用）
+     * @return 是否更新成功
+     */
+    boolean updateUserStatus(Long userId, Integer status);
+
+    /**
+     * 更新用户角色
+     * @param userId 用户ID
+     * @param role 角色
+     * @return 是否更新成功
+     */
+    boolean updateUserRole(Long userId, String role);
+
+    /**
+     * 重置用户密码
+     * @param userId 用户ID
+     * @return 是否重置成功
+     */
+    boolean resetUserPassword(Long userId);
+
+    /**
+     * 修改用户密码
+     * @param userId 用户ID
+     * @param oldPassword 旧密码
+     * @param newPassword 新密码
+     * @return 是否修改成功
+     */
+//    boolean updateUserPassword(Long userId, String oldPassword, String newPassword);
+
+    /**
+     * 获取用户统计信息
+     * @param userId 用户ID
+     * @return 用户统计信息
+     */
+    UserManageVO getUserStats(Long userId);
 }

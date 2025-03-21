@@ -10,6 +10,16 @@ const router = createRouter({
       redirect: '/home'
     },
     {
+      path: '/admin/import',
+      name: 'ImportProblems',
+      component: () => import('@/views/admin/ImportProblems.vue'),
+      meta: {
+        title: '导入题目',
+        requiresAuth: true,
+        requiresAdmin: true // 需要管理员权限
+      }
+    },
+    {
       path: '/login',
       name: 'Login',
       component: () => import('@/views/Login.vue'),
@@ -99,6 +109,12 @@ const router = createRouter({
           meta: { title: '题目管理' }
         },
         {
+          path: 'users',
+          name: 'AdminUsers',
+          component: () => import('@/views/admin/Users.vue'),
+          meta: { title: '用户管理' }
+        },
+        {
           path: 'problem/add/:type',
           name: 'AdminProblemAdd',
           component: () => import('@/views/admin/problem/ProblemEdit.vue'),
@@ -144,11 +160,13 @@ router.beforeEach((to, from, next) => {
   
   // 进入需要登录的页面，但未登录时，重定向到登录页
   if (to.meta.requiresAuth && !userStore.token) {
+    ElMessage.warning('登录已过期，请重新登录')
     next({ path: '/login', query: { redirect: to.fullPath } })
     return
   }
 
   next()
 })
+
 
 export default router 

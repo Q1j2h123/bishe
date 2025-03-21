@@ -49,6 +49,8 @@
               <el-option label="运行错误" value="RUNTIME_ERROR" />
               <el-option label="超时" value="TIME_LIMIT_EXCEEDED" />
               <el-option label="内存超限" value="MEMORY_LIMIT_EXCEEDED" />
+              <el-option label="待测评" value="PENDING" />
+              <el-option label="系统错误" value="SYSTEM_ERROR" />
             </el-select>
             
             <el-select v-model="difficultyFilter" placeholder="难度" @change="handleFilterChange" clearable class="filter-item">
@@ -405,12 +407,15 @@ const formatDifficulty = (difficulty: string): string => {
   const difficultyMap: Record<string, string> = {
     'EASY': '简单',
     'MEDIUM': '中等',
-    'HARD': '困难'
+    'HARD': '困难',
+    '简单': '简单',
+    '中等': '中等',
+    '困难': '困难'
   }
   return difficultyMap[difficulty] || difficulty
 }
 
-// 获取难度标签样式
+// 获取难度标签样式颜色
 const getDifficultyTagType = (difficulty: string): string => {
   const difficultyMap: Record<string, string> = {
     'EASY': 'success',
@@ -437,11 +442,14 @@ const formatStatus = (status: string): string => {
   const statusMap: Record<string, string> = {
     'PENDING': '评测中',
     'ACCEPTED': '正确',
+    'CORRECT': '正确',
+    'WRONG': '错误',
     'WRONG_ANSWER': '错误',
     'COMPILE_ERROR': '编译错误',
     'RUNTIME_ERROR': '运行错误',
     'TIME_LIMIT_EXCEEDED': '超时',
-    'MEMORY_LIMIT_EXCEEDED': '内存超限'
+    'MEMORY_LIMIT_EXCEEDED': '内存超限',
+    'SYSTEM_ERROR': '系统错误'
   }
   return statusMap[status] || status
 }
@@ -451,6 +459,7 @@ const getStatusTagType = (status: string): string => {
   const statusMap: Record<string, string> = {
     'PENDING': 'info',
     'ACCEPTED': 'success',
+    'CORRECT': 'success',
     'WRONG_ANSWER': 'danger',
     'COMPILE_ERROR': 'warning',
     'RUNTIME_ERROR': 'danger',
@@ -551,7 +560,7 @@ const handleCurrentChange = (page: number) => {
 // 处理每页条数变化
 const handleSizeChange = (size: number) => {
   pageSize.value = size
-  currentPage.value = 1 // 重置到第一页
+ // currentPage.value = 1 // 重置到第一页
   loadSubmissions()
 }
 

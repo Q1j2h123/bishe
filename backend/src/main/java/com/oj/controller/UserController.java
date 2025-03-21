@@ -1,10 +1,15 @@
 package com.oj.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.oj.annotation.AuthCheck;
 import com.oj.common.BaseResponse;
 import com.oj.common.ErrorCode;
 import com.oj.common.ResultUtils;
+import com.oj.constant.UserConstant;
 import com.oj.exception.BusinessException;
+import com.oj.model.dto.UserQueryRequest;
 import com.oj.model.entity.User;
+import com.oj.model.vo.UserListVO;
 import com.oj.service.UserService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -30,6 +35,7 @@ import com.oj.model.vo.UserVO;
 import com.oj.utils.JwtUtils;
 
 import com.oj.model.dto.UserDTO;
+import com.oj.model.vo.UserManageVO;
 
 @RestController
 @RequestMapping("/api/user")
@@ -60,6 +66,20 @@ public class UserController {
         return BaseResponse.success(result);
     }
 
+
+    // 用户列表查询
+    @PostMapping("/list")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Page<UserListVO>> listUsers(@RequestBody UserQueryRequest queryRequest) {
+        return ResultUtils.success(userService.listUsers(queryRequest));
+    }
+
+    // 用户详情查询
+    @GetMapping("/detail/{userId}")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<User> getUserDetail(@PathVariable Long userId) {
+        return ResultUtils.success(userService.getById(userId));
+    }
     @PostMapping("/login")
     @ApiOperation(value = "用户登录", notes = "用户登录并返回登录信息")
     public BaseResponse<UserLoginVO> userLogin(@ApiParam(value = "登录信息", required = true) @RequestBody @Valid UserLoginRequest userLoginRequest,
@@ -177,4 +197,63 @@ public class UserController {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "文件上传失败: " + e.getMessage());
         }
     }
-} 
+
+    /**
+     * 获取用户管理详情
+     */
+    @GetMapping("/manage/detail/{userId}")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @ApiOperation(value = "获取用户管理详情", notes = "管理员获取用户详细信息")
+    public BaseResponse<UserManageVO> getUserManageDetail(@PathVariable Long userId) {
+        UserManageVO userManageVO = userService.getUserManageDetail(userId);
+        return ResultUtils.success(userManageVO);
+    }
+
+    /**
+     * 更新用户状态
+     */
+    @PutMapping("/manage/status/{userId}")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @ApiOperation(value = "更新用户状态", notes = "管理员更新用户状态（启用/禁用）")
+    public BaseResponse<Boolean> updateUserStatus(@PathVariable Long userId, @RequestParam Integer status) {
+        userService.updateUserStatus(userId, status);
+        return ResultUtils.success(true);
+    }
+
+    /**
+     * 更新用户角色
+     */
+    @PostMapping("/manage/role/{userId}")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @ApiOperation(value = "更新用户角色", notes = "管理员更新用户角色")
+    public BaseResponse<Boolean> updateUserRole(@PathVariable Long userId, @RequestParam String role) {
+        return ResultUtils.success(userService.updateUserRole(userId, role));
+    }
+
+    /**
+     * 重置用户密码
+     */
+    @PostMapping("/manage/reset-password/{userId}")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @ApiOperation(value = "重置用户密码", notes = "管理员重置用户密码")
+    public BaseResponse<Boolean> resetUserPassword(@PathVariable Long userId) {
+        return ResultUtils.success(userService.resetUserPassword(userId));
+    }
+
+    /**
+     * 修改用户密码
+     */
+//    @PostMapping("/update-password")
+//    @ApiOperation(value = "修改用户密码", notes = "用户修改自己的密码")
+//    public BaseResponse<Boolean> updateUserPassword(@RequestParam String oldPassword,
+//                                                  @RequestParam String newPassword,
+//                                                  HttpServletRequest request) {
+//        // 获取当前登录用户
+//        User loginUser = userService.getLoginUser(request);
+//        if (loginUser == null) {
+//            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+//        }
+//        return ResultUtils.success(userService.updateUserPassword(loginUser.getId(), oldPassword, newPassword));
+//    }
+}
+

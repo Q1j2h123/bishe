@@ -444,7 +444,7 @@ public class JudgeServiceImpl implements JudgeService {
                 // 如果调用服务接口失败，尝试使用内部方法
                 updateUserProblemStatus(userId, problemId, userProblemStatus);
             }
-            
+                    
             // 如果评测结果不是ACCEPTED，则添加到错题本
             if (!JudgeConstant.STATUS_ACCEPTED.equals(result.getStatus())) {
                 log.info("题目评测未通过，添加到错题本: userId={}, problemId={}", userId, problemId);
@@ -602,53 +602,53 @@ public class JudgeServiceImpl implements JudgeService {
                     } catch (Exception e) {
                         log.warn("调用强制更新方法失败，回退到直接数据库操作: {}", e.getMessage());
                     }
-                    
-                    // 查询是否已有记录
-                    LambdaQueryWrapper<UserProblemStatus> queryWrapper = new LambdaQueryWrapper<>();
-                    queryWrapper.eq(UserProblemStatus::getUserId, userId)
-                            .eq(UserProblemStatus::getProblemId, problemId);
-                    
-                    UserProblemStatus userProblemStatus = userProblemStatusMapper.selectOne(queryWrapper);
-                    
-                    // 检查更新条件
-                    boolean shouldUpdate = true;
-                    
-                    if (userProblemStatus == null) {
-                        // 没有记录，创建新记录
-                        log.info("用户题目状态不存在，创建新记录");
-                        userProblemStatus = new UserProblemStatus();
-                        userProblemStatus.setUserId(userId);
-                        userProblemStatus.setProblemId(problemId);
+            
+            // 查询是否已有记录
+            LambdaQueryWrapper<UserProblemStatus> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(UserProblemStatus::getUserId, userId)
+                    .eq(UserProblemStatus::getProblemId, problemId);
+            
+            UserProblemStatus userProblemStatus = userProblemStatusMapper.selectOne(queryWrapper);
+            
+            // 检查更新条件
+            boolean shouldUpdate = true;
+            
+            if (userProblemStatus == null) {
+                // 没有记录，创建新记录
+                log.info("用户题目状态不存在，创建新记录");
+                userProblemStatus = new UserProblemStatus();
+                userProblemStatus.setUserId(userId);
+                userProblemStatus.setProblemId(problemId);
                         userProblemStatus.setStatus(userStatus);
                         userProblemStatus.setLastSubmitTime(LocalDateTime.now());
-                        userProblemStatusMapper.insert(userProblemStatus);
+                userProblemStatusMapper.insert(userProblemStatus);
                         updated = true;
                         log.info("用户题目状态创建成功");
-                        return;
-                    } else {
-                        log.info("找到现有状态: {}", userProblemStatus);
-                        String currentStatus = userProblemStatus.getStatus();
-                        
-                        // 如果当前状态是已解决，则不再更新
-                        if (SubmissionConstant.USER_STATUS_SOLVED.equals(currentStatus)) {
-                            log.info("题目已经是SOLVED状态，保持不变");
-                            shouldUpdate = false;
+                return;
+            } else {
+                log.info("找到现有状态: {}", userProblemStatus);
+                String currentStatus = userProblemStatus.getStatus();
+                
+                // 如果当前状态是已解决，则不再更新
+                if (SubmissionConstant.USER_STATUS_SOLVED.equals(currentStatus)) {
+                    log.info("题目已经是SOLVED状态，保持不变");
+                    shouldUpdate = false;
                             updated = true; // 无需更新也视为成功
-                        } 
-                        // 如果要更新为ATTEMPTED，但当前已经是更高级别的状态，则不更新
+                } 
+                // 如果要更新为ATTEMPTED，但当前已经是更高级别的状态，则不更新
                         else if (SubmissionConstant.USER_STATUS_ATTEMPTED.equals(userStatus) && 
-                                SubmissionConstant.USER_STATUS_SOLVED.equals(currentStatus)) {
-                            log.info("当前状态为SOLVED，新状态为ATTEMPTED，保持不变");
-                            shouldUpdate = false;
+                        SubmissionConstant.USER_STATUS_SOLVED.equals(currentStatus)) {
+                    log.info("当前状态为SOLVED，新状态为ATTEMPTED，保持不变");
+                    shouldUpdate = false;
                             updated = true; // 无需更新也视为成功
-                        }
-                        // 其他情况：从UNSOLVED升级到任何状态，或从ATTEMPTED升级到SOLVED，都更新
-                    }
-                    
-                    if (shouldUpdate) {
+                }
+                // 其他情况：从UNSOLVED升级到任何状态，或从ATTEMPTED升级到SOLVED，都更新
+            }
+            
+            if (shouldUpdate) {
                         log.info("更新用户题目状态: {} -> {}", userProblemStatus.getStatus(), userStatus);
                         userProblemStatus.setStatus(userStatus);
-                        userProblemStatus.setLastSubmitTime(LocalDateTime.now());
+                userProblemStatus.setLastSubmitTime(LocalDateTime.now());
                         int result = userProblemStatusMapper.updateById(userProblemStatus);
                         updated = result > 0;
                         log.info("用户题目状态更新结果: {}", updated ? "成功" : "失败");

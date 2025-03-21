@@ -24,6 +24,11 @@
             <span>题目管理</span>
           </el-menu-item>
           
+          <el-menu-item index="/admin/import">
+            <el-icon><Upload /></el-icon>
+            <span>批量导入题目</span>
+          </el-menu-item>
+          
           <el-menu-item index="/admin/users">
             <el-icon><User /></el-icon>
             <span>用户管理</span>
@@ -71,7 +76,8 @@ import {
   Document, 
   User, 
   Odometer, 
-  ArrowDown 
+  ArrowDown,
+  Upload
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'

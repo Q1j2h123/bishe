@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<!-- <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -87,4 +87,4 @@ const router = useRouter()
 .leaderboard-placeholder {
   padding: 40px 0;
 }
-</style> 
+</style>  -->

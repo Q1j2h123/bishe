@@ -1,5 +1,11 @@
 import request from '@/utils/request'
-import type { LoginParams, RegisterParams } from '@/types/api'
+import type { 
+  LoginParams, 
+  RegisterParams, 
+  UserListParams,
+  UserListVO,
+  UserManageVO 
+} from '@/types/api'
 
 export interface UserInfo {
   id: number
@@ -26,6 +32,7 @@ export interface LoginResponse {
   }
   token: string
 }
+
 export const userApi = {
   // 用户登录
   async login(data: LoginParams) {
@@ -120,5 +127,112 @@ export const userApi = {
   // 退出登录
   logout() {
     localStorage.removeItem('token')
+  },
+
+  // 获取用户列表
+  async getUserList(params: UserListParams) {
+    try {
+      const response: any = await request.post('/user/list', params)
+      
+      console.log('获取用户列表响应:', response)
+      
+      if (!response) {
+        throw new Error('获取用户列表失败，服务器未返回有效数据')
+      }
+      
+      if (response.code !== 0) {
+        throw new Error(response.message || '获取用户列表失败')
+      }
+      
+      if (!response.data || !response.data.records) {
+        console.error('响应数据格式错误:', response)
+        throw new Error('获取用户列表失败，响应数据格式错误')
+      }
+      
+      return {
+        code: response.code,
+        message: response.message,
+        data: {
+          records: response.data.records || [],
+          total: response.data.total || 0
+        }
+      }
+    } catch (error) {
+      console.error('获取用户列表错误:', error)
+      throw error
+    }
+  },
+
+  // 获取用户管理详情
+  async getUserManageDetail(userId: number) {
+    try {
+      const response: any = await request.get(`/user/manage/detail/${userId}`)
+      
+      console.log('获取用户详情响应:', response)
+      
+      if (!response) {
+        throw new Error('获取用户详情失败，服务器未返回有效数据')
+      }
+      
+      if (response.code !== 0) {
+        throw new Error(response.message || '获取用户详情失败')
+      }
+      
+      if (!response.data) {
+        console.error('响应数据格式错误:', response)
+        throw new Error('获取用户详情失败，响应数据格式错误')
+      }
+      
+      return {
+        code: response.code,
+        message: response.message,
+        data: response.data
+      }
+    } catch (error) {
+      console.error('获取用户详情错误:', error)
+      throw error
+    }
+  },
+
+  // 更新用户角色
+  async updateUserRole(userId: number, role: string) {
+    try {
+      const response: any = await request.post(`/user/manage/role/${userId}?role=${role}`)
+      
+      console.log('更新用户角色响应:', response)
+      
+      if (!response) {
+        throw new Error('更新用户角色失败，服务器未返回有效数据')
+      }
+      
+      if (response.code !== 0) {
+        throw new Error(response.message || '更新用户角色失败')
+      }
+      
+      return response.data
+    } catch (error) {
+      console.error('更新用户角色错误:', error)
+      throw error
+    }
+  },
+
+  // 重置用户密码
+  async resetUserPassword(userId: number) {
+    try {
+      const response: any = await request.post(`/user/manage/reset-password/${userId}`)
+      
+      if (!response) {
+        throw new Error('重置密码失败，服务器未返回有效数据')
+      }
+      
+      if (response.code !== 0) {
+        throw new Error(response.message || '重置密码失败')
+      }
+      
+      return response.data
+    } catch (error) {
+      console.error('重置密码错误:', error)
+      throw error
+    }
   }
 } 

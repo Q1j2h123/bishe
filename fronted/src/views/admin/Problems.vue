@@ -479,11 +479,11 @@ const loadProblemList = async () => {
   }
 }
 
-// 处理查询
-const handleQuery = () => {
-  queryParams.current = 1
-  loadProblemList()
-}
+// // 处理查询
+// const handleQuery = () => {
+//   queryParams.current = 1
+//   loadProblemList()
+// }
 
 // 重置查询
 const resetQuery = () => {

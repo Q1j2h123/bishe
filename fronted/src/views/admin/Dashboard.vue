@@ -457,6 +457,7 @@ const initLanguageDistributionChart = () => {
   
   const languages = submissionStats.value.languageDistribution.map(item => item.language)
   const counts = submissionStats.value.languageDistribution.map(item => item.count)
+  const total = counts.reduce((a, b) => a + b, 0)
   
   if (languages.length === 0) {
     languageChart.setOption({
@@ -470,14 +471,27 @@ const initLanguageDistributionChart = () => {
   }
   
   const option = {
+    title: {
+      text: '编程语言使用情况',
+      left: 'center',
+      top: 0
+    },
     tooltip: {
       trigger: 'item',
-      formatter: '{a} <br/>{b}: {c} ({d}%)'
+      formatter: (params: any) => {
+        const percentage = ((params.value / total) * 100).toFixed(2)
+        return `${params.name}<br/>提交次数: ${params.value}<br/>占比: ${percentage}%`
+      }
     },
     legend: {
       orient: 'horizontal',
       bottom: 10,
-      data: languages
+      data: languages,
+      type: 'scroll',
+      pageIconSize: 12,
+      pageTextStyle: {
+        color: '#666'
+      }
     },
     series: [
       {
@@ -497,9 +511,35 @@ const initLanguageDistributionChart = () => {
           }
         },
         label: {
-          formatter: '{b}: {d}%'
+          show: true,
+          position: 'outside',
+          formatter: '{b}: {d}%',
+          fontSize: 12,
+          color: '#666'
+        },
+        labelLine: {
+          show: true,
+          length: 10,
+          length2: 10
+        },
+        itemStyle: {
+          borderRadius: 4,
+          borderColor: '#fff',
+          borderWidth: 2
         }
       }
+    ],
+    color: [
+      '#409EFF', // 蓝色
+      '#67C23A', // 绿色
+      '#E6A23C', // 橙色
+      '#F56C6C', // 红色
+      '#909399', // 灰色
+      '#36CBCB', // 青色
+      '#FFA500', // 橙色
+      '#FF69B4', // 粉色
+      '#BA55D3', // 紫色
+      '#CD853F'  // 棕色
     ]
   }
   

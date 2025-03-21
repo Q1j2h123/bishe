@@ -32,28 +32,7 @@ public interface SubmissionService extends IService<Submission> {
      */
     Long submitProgramCode(Long userId, ProgramSubmissionRequest request);
 
-    /**
-     * 获取用户的提交列表
-     * @param userId 用户ID
-     * @param current 当前页
-     * @param size 每页数量
-     * @return 提交列表
-     */
-    Page<SubmissionListVO> getUserSubmissions(Long userId, long current, long size);
 
-    /**
-     * 获取用户的提交列表
-     * @param userId 用户ID
-     * @param current 当前页
-     * @param size 每页数量
-     * @param type 题目类型
-     * @param status 提交状态
-     * @param difficulty 难度
-     * @param jobType 岗位类型
-     * @param tag 标签
-     * @param keyword 关键词
-     * @return 提交列表
-     */
     Page<SubmissionListVO> getUserSubmissions(Long userId, long current, long size, 
                                             String type, String status, String difficulty, 
                                             String jobType, String tag, String keyword);

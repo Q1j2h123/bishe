@@ -21,39 +21,52 @@ const statistics = ref({
 const dataLoading = ref(false)
 
 // 获取每日推荐题目
+// const fetchDailyProblem = async () => {
+//   try {
+//     const res = await problemApi.getDailyProblem()
+//     if (res.code === 0 && res.data) {
+//       dailyProblem.value = res.data
+//     }
+//   } catch (error) {
+//     console.error('获取每日推荐题目失败', error)
+//   }
+// }
 const fetchDailyProblem = async () => {
-  try {
-    const res = await problemApi.getDailyProblem()
-    if (res.code === 0 && res.data) {
-      dailyProblem.value = res.data
-    }
-  } catch (error) {
-    console.error('获取每日推荐题目失败', error)
-  }
-}
-
+     try {
+       // 只有登录后才获取每日推荐
+       if (userStore.token) {
+         const res = await problemApi.getDailyProblem()
+         if (res.code === 0 && res.data) {
+           dailyProblem.value = res.data
+         }
+       }
+     } catch (error) {
+       console.error('获取每日推荐题目失败', error)
+     }
+   }
 // 获取统计数据
 const fetchStatistics = async () => {
   dataLoading.value = true
   try {
+    if(userStore.token){
     const res = await dashboardApi.getHomeStats()
     if (res.code === 0 && res.data) {
       statistics.value = res.data
-    } else {
+    }} else {
       // 如果获取失败，使用默认值
       statistics.value = {
-        totalProblems: 568,
-        totalUsers: 2547,
-        totalSubmissions: 27896
+        totalProblems: 0,
+        totalUsers: 0,
+        totalSubmissions: 0
       }
     }
   } catch (error) {
     console.error('获取统计数据失败', error)
     // 如果API不存在或发生错误，使用默认值
     statistics.value = {
-      totalProblems: 568,
-      totalUsers: 2547,
-      totalSubmissions: 27896
+      totalProblems: 0,
+      totalUsers: 0,
+      totalSubmissions: 0
     }
   } finally {
     dataLoading.value = false
@@ -134,7 +147,7 @@ const viewDailyProblem = () => {
         <el-button text :type="$route.path === '/home' ? 'primary' : 'default'" @click="router.push('/home')">首页</el-button>
         <el-button text :type="$route.path === '/problems' ? 'primary' : 'default'" @click="router.push('/problems')">题库</el-button>
         <el-button text :type="$route.path === '/my-submissions' ? 'primary' : 'default'" @click="router.push('/my-submissions')">提交记录</el-button>
-        <el-button text :type="$route.path === '/leaderboard' ? 'primary' : 'default'" @click="router.push('/leaderboard')">排行榜</el-button>
+        <!-- <el-button text :type="$route.path === '/leaderboard' ? 'primary' : 'default'" @click="router.push('/leaderboard')">排行榜</el-button> -->
       </div>
       
       <!-- 用户区域 -->

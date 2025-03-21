@@ -23,21 +23,20 @@ import com.oj.service.SubmissionService;
 import com.oj.service.UserService;
 import com.oj.service.JudgeService;
 import com.oj.service.ErrorProblemService;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.BeanUtils;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.transaction.support.TransactionSynchronization;
+
 import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+
 import java.util.stream.Collectors;
 
 @Service
@@ -223,27 +222,24 @@ public class SubmissionServiceImpl extends ServiceImpl<SubmissionMapper, Submiss
     }
 
     @Override
-    public Page<SubmissionListVO> getUserSubmissions(Long userId, long current, long size) {
-        return getUserSubmissions(userId, current, size, null, null, null, null, null, null);
-    }
-
-    @Override
     public Page<SubmissionListVO> getUserSubmissions(Long userId, long current, long size,
                                                   String type, String status, String difficulty,
                                                   String jobType, String tag, String keyword) {
-        // 查询用户的提交记录
-        Page<Submission> page = new Page<>(current, size);
+        // 1. 先获取符合条件的题目ID列表
+        List<Long> filteredProblemIds = getFilteredProblemIds(difficulty, jobType, tag, keyword);
+        
+        // 2. 构建查询条件
         LambdaQueryWrapper<Submission> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Submission::getUserId, userId)
-                   .eq(Submission::getIsDelete, 0);
+                   .eq(Submission::getIsDelete, 0)
+                   .in(Submission::getProblemId, filteredProblemIds);  // 使用IN查询
         
-        // 添加筛选条件
+        // 3. 添加其他筛选条件
         if (type != null && !type.isEmpty()) {
             queryWrapper.eq(Submission::getType, type);
         }
         
         if (status != null && !status.isEmpty()) {
-            // 处理CORRECT和ACCEPTED状态的兼容
             if ("ACCEPTED".equals(status)) {
                 queryWrapper.and(w -> w.eq(Submission::getStatus, STATUS_ACCEPTED)
                                       .or()
@@ -253,181 +249,43 @@ public class SubmissionServiceImpl extends ServiceImpl<SubmissionMapper, Submiss
             }
         }
         
-        // 按最新提交排序
+        // 4. 执行分页查询
+        Page<Submission> page = new Page<>(current, size);
         queryWrapper.orderByDesc(Submission::getSubmissionTime);
-        
         Page<Submission> submissionPage = this.page(page, queryWrapper);
         
-        // 转换为VO
-        Page<SubmissionListVO> resultPage = new Page<>(
-                submissionPage.getCurrent(),
-                submissionPage.getSize(),
-                submissionPage.getTotal());
+        // 5. 转换为VO并返回
+        return convertToVO(submissionPage);
+    }
+
+    // 获取符合条件的题目ID列表
+    private List<Long> getFilteredProblemIds(String difficulty, String jobType, String tag, String keyword) {
+        LambdaQueryWrapper<Problem> problemWrapper = new LambdaQueryWrapper<>();
         
-        if (submissionPage.getRecords().isEmpty()) {
-            resultPage.setRecords(new ArrayList<>());
-            return resultPage;
+        if (difficulty != null && !difficulty.isEmpty()) {
+            problemWrapper.eq(Problem::getDifficulty, difficulty);
         }
         
-        // 查询题目信息，填充题目标题和难度
-        List<Long> problemIds = submissionPage.getRecords().stream()
-                .map(Submission::getProblemId)
-                .collect(Collectors.toList());
-        
-        List<Problem> problems = problemMapper.selectBatchIds(problemIds);
-        
-        // 将题目信息映射为ID-Problem的形式，方便查找
-        java.util.Map<Long, Problem> problemMap = problems.stream()
-                .collect(Collectors.toMap(Problem::getId, problem -> problem));
-        
-        // 解析标签参数，支持多标签查询
-        List<String> tags = null;
-        String finalTag = tag; // 创建一个final变量保存tag的值
+        if (jobType != null && !jobType.isEmpty()) {
+            problemWrapper.eq(Problem::getJobType, jobType);
+        }
         
         if (tag != null && !tag.isEmpty()) {
-            // 如果tag参数包含逗号，可能是多标签查询
-            if (tag.contains(",")) {
-                tags = Arrays.asList(tag.split(","));
-                finalTag = null; // 清空单标签查询，避免重复条件
-            }
+            problemWrapper.like(Problem::getTags, tag);
         }
         
-        // 根据附加筛选条件过滤
-        if ((difficulty != null && !difficulty.isEmpty()) ||
-            (jobType != null && !jobType.isEmpty()) ||
-            (finalTag != null && !finalTag.isEmpty()) ||
-            (tags != null && !tags.isEmpty()) ||
-            (keyword != null && !keyword.isEmpty())) {
-            
-            // 创建final变量引用，用于lambda表达式
-            final String difficultyFilter = difficulty;
-            final String jobTypeFilter = jobType;
-            final String tagFilter = finalTag;
-            final String keywordFilter = keyword;
-            final List<String> tagsFilter = tags;
-            
-            // 先过滤找到匹配的题目ID
-            List<Long> filteredProblemIds = problems.stream()
-                .filter(problem -> {
-                    // 按难度筛选
-                    if (difficultyFilter != null && !difficultyFilter.isEmpty() && 
-                        !difficultyFilter.equals(problem.getDifficulty())) {
-                        return false;
-                    }
-                    
-                    // 按岗位类型筛选
-                    if (jobTypeFilter != null && !jobTypeFilter.isEmpty() && 
-                        !jobTypeFilter.equals(problem.getJobType())) {
-                        return false;
-                    }
-                    
-                    // 按单个标签筛选
-                    if (tagFilter != null && !tagFilter.isEmpty()) {
-                        if (problem.getTags() == null || !problem.getTags().contains(tagFilter)) {
-                            return false;
-                        }
-                    }
-                    
-                    // 按多个标签筛选 - 任一标签匹配即可（OR关系）
-                    if (tagsFilter != null && !tagsFilter.isEmpty()) {
-                        if (problem.getTags() == null) {
-                            return false;
-                        }
-                        
-                        boolean anyTagMatch = false;
-                        for (String t : tagsFilter) {
-                            if (StringUtils.hasText(t) && problem.getTags().contains(t)) {
-                                anyTagMatch = true;
-                                break;
-                            }
-                        }
-                        
-                        if (!anyTagMatch) {
-                            return false;
-                        }
-                    }
-                    
-                    // 按关键词筛选（标题、内容、标签）
-                    if (keywordFilter != null && !keywordFilter.isEmpty()) {
-                        boolean titleMatch = problem.getTitle() != null && 
-                                            problem.getTitle().contains(keywordFilter);
-                        boolean contentMatch = problem.getContent() != null && 
-                                            problem.getContent().contains(keywordFilter);
-                        boolean tagsMatch = problem.getTags() != null && 
-                                            problem.getTags().contains(keywordFilter);
-                        
-                        return titleMatch || contentMatch || tagsMatch;
-                    }
-                    
-                    return true;
-                })
-                .map(Problem::getId)
-                .collect(Collectors.toList());
-                
-            // 筛选提交记录
-            submissionPage.setRecords(submissionPage.getRecords().stream()
-                .filter(submission -> filteredProblemIds.contains(submission.getProblemId()))
-                .collect(Collectors.toList()));
-                
-            // 更新总数
-            resultPage.setTotal(submissionPage.getRecords().size());
+        if (keyword != null && !keyword.isEmpty()) {
+            problemWrapper.like(Problem::getTitle, keyword)
+                         .or()
+                         .like(Problem::getContent, keyword)
+                         .or()
+                         .like(Problem::getTags, keyword);
         }
         
-        // 构建VO列表
-        List<SubmissionListVO> submissionVOList = submissionPage.getRecords().stream()
-                .map(submission -> {
-                    SubmissionListVO vo;
-                    
-                    // 根据提交类型创建不同的VO
-                    if (TYPE_PROGRAM.equals(submission.getType())) {
-                        ProgramSubmissionListVO programVO = new ProgramSubmissionListVO();
-                        // 查询编程题提交详情
-                        ProgramSubmission programSubmission = programSubmissionMapper.selectById(submission.getId());
-                        if (programSubmission != null) {
-                            programVO.setLanguage(programSubmission.getLanguage());
-                            programVO.setExecuteTime(programSubmission.getExecuteTime());
-                            programVO.setMemoryUsage(programSubmission.getMemoryUsage());
-                        }
-                        vo = programVO;
-                    } else {
-                        ChoiceJudgeSubmissionListVO choiceJudgeVO = new ChoiceJudgeSubmissionListVO();
-                        // 查询选择/判断题提交详情
-                        ChoiceJudgeSubmission choiceJudgeSubmission = choiceJudgeSubmissionMapper.selectById(submission.getId());
-                        if (choiceJudgeSubmission != null) {
-                            choiceJudgeVO.setAnswer(choiceJudgeSubmission.getAnswer());
-                        }
-                        vo = choiceJudgeVO;
-                    }
-                    
-                    // 设置基本属性
-                    vo.setId(submission.getId());
-                    vo.setProblemId(submission.getProblemId());
-                    vo.setType(submission.getType());
-                    vo.setStatus(submission.getStatus());
-                    vo.setSubmissionTime(submission.getSubmissionTime());
-                    
-                    // 设置题目相关信息
-                    Problem problem = problemMap.get(submission.getProblemId());
-                    if (problem != null) {
-                        vo.setProblemTitle(problem.getTitle());
-                        vo.setDifficulty(problem.getDifficulty());
-                        vo.setJobType(problem.getJobType());
-                        // 设置标签
-                        vo.setTags(problem.getTags() != null ? Arrays.asList(problem.getTags().split(",")) : new ArrayList<>());
-                    } else {
-                        // 处理题目已删除的情况
-                        vo.setProblemTitle("已删除的题目");
-                        vo.setDifficulty("未知");
-                        vo.setJobType("未知");
-                        vo.setTags(new ArrayList<>());
-                    }
-                    
-                    return vo;
-                })
-                .collect(Collectors.toList());
-        
-        resultPage.setRecords(submissionVOList);
-        return resultPage;
+        return problemMapper.selectList(problemWrapper)
+                           .stream()
+                           .map(Problem::getId)
+                           .collect(Collectors.toList());
     }
 
     @Override
@@ -737,7 +595,6 @@ public class SubmissionServiceImpl extends ServiceImpl<SubmissionMapper, Submiss
         return detailVO;
     }
 
-
     @Override
     @Transactional
     public void updateUserProblemStatus(Long userId, Long problemId, String status) {
@@ -839,5 +696,85 @@ public class SubmissionServiceImpl extends ServiceImpl<SubmissionMapper, Submiss
         } catch (Exception e) {
             log.error("延迟评测任务异常: {}", submissionId, e);
         }
+    }
+
+    private Page<SubmissionListVO> convertToVO(Page<Submission> submissionPage) {
+        // 转换为VO
+        Page<SubmissionListVO> resultPage = new Page<>(
+                submissionPage.getCurrent(),
+                submissionPage.getSize(),
+                submissionPage.getTotal());
+        
+        if (submissionPage.getRecords().isEmpty()) {
+            resultPage.setRecords(new ArrayList<>());
+            return resultPage;
+        }
+        
+        // 查询题目信息，填充题目标题和难度
+        List<Long> problemIds = submissionPage.getRecords().stream()
+                .map(Submission::getProblemId)
+                .collect(Collectors.toList());
+        
+        List<Problem> problems = problemMapper.selectBatchIds(problemIds);
+        
+        // 将题目信息映射为ID-Problem的形式，方便查找
+        Map<Long, Problem> problemMap = problems.stream()
+                .collect(Collectors.toMap(Problem::getId, problem -> problem));
+        
+        // 构建VO列表
+        List<SubmissionListVO> submissionVOList = submissionPage.getRecords().stream()
+                .map(submission -> {
+                    SubmissionListVO vo;
+                    
+                    // 根据提交类型创建不同的VO
+                    if (TYPE_PROGRAM.equals(submission.getType())) {
+                        ProgramSubmissionListVO programVO = new ProgramSubmissionListVO();
+                        // 查询编程题提交详情
+                        ProgramSubmission programSubmission = programSubmissionMapper.selectById(submission.getId());
+                        if (programSubmission != null) {
+                            programVO.setLanguage(programSubmission.getLanguage());
+                            programVO.setExecuteTime(programSubmission.getExecuteTime());
+                            programVO.setMemoryUsage(programSubmission.getMemoryUsage());
+                        }
+                        vo = programVO;
+                    } else {
+                        ChoiceJudgeSubmissionListVO choiceJudgeVO = new ChoiceJudgeSubmissionListVO();
+                        // 查询选择/判断题提交详情
+                        ChoiceJudgeSubmission choiceJudgeSubmission = choiceJudgeSubmissionMapper.selectById(submission.getId());
+                        if (choiceJudgeSubmission != null) {
+                            choiceJudgeVO.setAnswer(choiceJudgeSubmission.getAnswer());
+                        }
+                        vo = choiceJudgeVO;
+                    }
+                    
+                    // 设置基本属性
+                    vo.setId(submission.getId());
+                    vo.setProblemId(submission.getProblemId());
+                    vo.setType(submission.getType());
+                    vo.setStatus(submission.getStatus());
+                    vo.setSubmissionTime(submission.getSubmissionTime());
+                    
+                    // 设置题目相关信息
+                    Problem problem = problemMap.get(submission.getProblemId());
+                    if (problem != null) {
+                        vo.setProblemTitle(problem.getTitle());
+                        vo.setDifficulty(problem.getDifficulty());
+                        vo.setJobType(problem.getJobType());
+                        // 设置标签
+                        vo.setTags(problem.getTags() != null ? Arrays.asList(problem.getTags().split(",")) : new ArrayList<>());
+                    } else {
+                        // 处理题目已删除的情况
+                        vo.setProblemTitle("已删除的题目");
+                        vo.setDifficulty("未知");
+                        vo.setJobType("未知");
+                        vo.setTags(new ArrayList<>());
+                    }
+                    
+                    return vo;
+                })
+                .collect(Collectors.toList());
+        
+        resultPage.setRecords(submissionVOList);
+        return resultPage;
     }
 } 

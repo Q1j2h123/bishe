@@ -407,24 +407,26 @@ public class DashboardServiceImpl implements DashboardService {
             // 获取语言分布
             List<SubmissionStatsVO.LanguageDistribution> languageDistribution = new ArrayList<>();
             
-            // 查询所有不同的语言类型
-            QueryWrapper<Submission> languageQueryWrapper = new QueryWrapper<>();
-            languageQueryWrapper.select("type", "COUNT(*) as count")
-                                .groupBy("type");
-            
-            List<Map<String, Object>> languageCounts = submissionMapper.selectMaps(languageQueryWrapper);
-            
-            // 处理查询结果
-            for (Map<String, Object> map : languageCounts) {
-                String language = (String) map.get("type");
-                Long count = ((Number) map.get("count")).longValue();
+            // 使用JdbcTemplate直接查询program_submission表的语言分布
+            try {
+                String sql = "SELECT language, COUNT(*) as count FROM program_submission WHERE language IS NOT NULL AND language != '' GROUP BY language ORDER BY count DESC";
+                JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+                List<Map<String, Object>> languageCounts = jdbcTemplate.queryForList(sql);
                 
-                if (language != null && !language.isEmpty()) {
-                    SubmissionStatsVO.LanguageDistribution dto = new SubmissionStatsVO.LanguageDistribution();
-                    dto.setLanguage(language);
-                    dto.setCount(count.intValue());
-                    languageDistribution.add(dto);
+                // 处理查询结果
+                for (Map<String, Object> map : languageCounts) {
+                    String language = (String) map.get("language");
+                    Long count = ((Number) map.get("count")).longValue();
+                    
+                    if (language != null && !language.isEmpty()) {
+                        SubmissionStatsVO.LanguageDistribution dto = new SubmissionStatsVO.LanguageDistribution();
+                        dto.setLanguage(language);
+                        dto.setCount(count.intValue());
+                        languageDistribution.add(dto);
+                    }
                 }
+            } catch (Exception e) {
+                log.error("获取编程语言分布统计失败", e);
             }
             
             statsVO.setLanguageDistribution(languageDistribution);

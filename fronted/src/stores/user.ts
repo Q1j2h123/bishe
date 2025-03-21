@@ -85,7 +85,9 @@ export const useUserStore = defineStore('user', () => {
     } catch (error) {
       console.error('获取用户信息失败:', error)
       // 如果获取用户信息失败，可能是token过期
-      logout()
+      // logout()
+      setToken(null)
+      setUserInfo(null)
       throw error
     }
   }
