@@ -1,0 +1,111 @@
+@startuml
+
+!theme plain
+top to bottom direction
+skinparam linetype ortho
+
+class node3 as "choice_judge_submission  /* 选择判断题提交详情 */" {
+   answer  /* 用户答案 */: varchar(32)
+   submissionId  /* 关联submission表的id */: bigint
+}
+class node4 as "choice_problem  /* 选择题表 */" {
+   options  /* 选项，JSON格式：[{"key": "A", "content": "选项内容"}] */: text
+   answer  /* 正确答案，单选为A/B/C/D，多选为逗号分隔 */: varchar(32)
+   analysis  /* 解析 */: text
+   id  /* 关联problem表的id */: bigint
+}
+class node5 as "error_problem  /* 错题记录表 */" {
+   userId  /* 用户ID */: bigint
+   problemId  /* 题目ID */: bigint
+   lastErrorTime  /* 最近错误时间 */: datetime
+   status  /* 状态(0-未掌握, 1-已掌握) */: tinyint
+   createTime  /* 创建时间 */: datetime
+   updateTime  /* 更新时间 */: datetime
+   isDelete  /* 是否删除(0-未删, 1-已删) */: tinyint
+   id  /* ID */: bigint
+}
+class node6 as "judge_problem  /* 判断题表 */" {
+   answer  /* 正确答案：true(正确)/false(错误) */: tinyint(1)
+   analysis  /* 解析 */: text
+   id  /* 关联problem表的id */: bigint
+}
+class node1 as "problem  /* 题目基础表 */" {
+   title  /* 题目标题 */: varchar(512)
+   content  /* 题目内容 */: text
+   type  /* 题目类型：CHOICE(选择题)、JUDGE(判断题)、PROGRAM(编程题) */: varchar(128)
+   jobType  /* 岗位类型 */: varchar(32)
+   tags  /* 标签 */: varchar(512)
+   difficulty  /* 难度：EASY、MEDIUM、HARD */: varchar(32)
+   userId  /* 创建者 id */: bigint
+   acceptRate  /* 通过率 */: varchar(8)
+   submissionCount  /* 提交次数 */: int
+   createTime: datetime
+   updateTime: datetime
+   isDelete: tinyint
+   status  /* 状态（UNSOLVED-未解决，ATTEMPTED-尝试过，SOLVED-已解决） */: varchar(255)
+   id  /* 主键 */: bigint
+}
+class node9 as "program_problem  /* 编程题表 */" {
+   functionName  /* 函数名称 */: varchar(64)
+   paramTypes  /* 参数类型，JSON格式，如：["int[]", "int"] */: varchar(512)
+   returnType  /* 返回值类型 */: varchar(64)
+   testCases  /* 测试用例，包含示例和隐藏用例，JSON格式，如：[{"input": "[2,7,11,15]\n9", "output"... */: json
+   templates  /* 各语言代码模板，JSON格式，如：{"java": "public class...", "python": "def..."} */: json
+   timeLimit  /* 时间限制(ms) */: int
+   memoryLimit  /* 内存限制(MB) */: int
+   createTime: datetime
+   updateTime: datetime
+   isDelete: tinyint
+   standardSolution  /* 各语言的标准答案，JSON格式，如：{"java": "public class Solution {...}", "py... */: json
+   id  /* 关联problem表的id */: bigint
+}
+class node0 as "program_submission  /* 编程题提交详情 */" {
+   language  /* 编程语言 */: varchar(32)
+   code  /* 代码 */: text
+   executeTime  /* 执行时间(ms) */: int
+   memoryUsage  /* 内存使用(MB) */: int
+   testcaseResults  /* 测试用例执行结果，JSON格式 */: text
+   errorMessage  /* 详细错误信息，包含编译错误或运行时错误的具体内容 */: text
+   submissionId  /* 关联submission表的id */: bigint
+}
+class node2 as "submission  /* 提交记录基础表 */" {
+   userId  /* 用户id */: bigint
+   problemId  /* 题目id */: bigint
+   type  /* 提交类型：PROGRAMMING/CHOICE/JUDGE */: varchar(32)
+   submissionTime  /* 提交时间 */: datetime
+   createTime  /* 创建时间 */: datetime
+   updateTime  /* 更新时间 */: datetime
+   isDelete  /* 是否删除 */: tinyint
+   status  /* 提交状态：PENDING(待评测)、JUDGING(评测中)、ACCEPTED(通过)、WRONG_ANSWER(答案错误... */: varchar(32)
+   id  /* 主键 */: bigint
+}
+class node7 as "user  /* 用户 */" {
+   userAccount  /* 账号 */: varchar(256)
+   userPassword  /* 密码 */: varchar(512)
+   unionId  /* 微信开放平台id */: varchar(256)
+   mpOpenId  /* 公众号openId */: varchar(256)
+   userName  /* 用户昵称 */: varchar(256)
+   userAvatar  /* 用户头像 */: varchar(1024)
+   userProfile  /* 用户简介 */: varchar(512)
+   userRole  /* 用户角色：user/admin/ban */: varchar(256)
+   createTime  /* 创建时间 */: datetime
+   updateTime  /* 更新时间 */: datetime
+   isDelete  /* 是否删除 */: tinyint
+   id  /* id */: bigint
+}
+class user_problem_status {
+   userId: bigint
+   problemId: bigint
+   status  /* UNSOLVED/ATTEMPTED/SOLVED */: varchar(32)
+   lastSubmitTime: datetime
+   createTime: datetime
+   updateTime: datetime
+   id: bigint
+}
+
+node3                -[#595959,plain]-^  node2               : "submissionId:id"
+node4                -[#595959,plain]-^  node1               : "id"
+node6                -[#595959,plain]-^  node1               : "id"
+node9                -[#595959,plain]-^  node1               : "id"
+node0                -[#595959,plain]-^  node2               : "submissionId:id"
+@enduml

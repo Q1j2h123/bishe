@@ -76,19 +76,33 @@ export const useUserStore = defineStore('user', () => {
 
   // 获取当前用户信息
   const getCurrentUser = async () => {
-    if (!token.value) return null
+    if (!token.value) {
+      console.warn('获取用户信息失败：未找到token')
+      return null
+    }
     
     try {
+      console.log('开始获取当前用户信息，token:', token.value.substring(0, 10) + '...')
       const response = await userApi.getCurrentUser()
+      
+      if (!response) {
+        console.error('获取用户信息失败：响应数据为空')
+        return null
+      }
+      
+      console.log('成功获取用户信息:', response)
       setUserInfo(response)
       return response
-    } catch (error) {
+    } catch (error: any) {
       console.error('获取用户信息失败:', error)
-      // 如果获取用户信息失败，可能是token过期
-      // logout()
-      setToken(null)
-      setUserInfo(null)
-      throw error
+      
+      // 如果是401错误，说明token过期或无效
+      if (error.response?.status === 401) {
+        console.log('token已过期或无效，执行登出操作')
+        logout()
+      }
+      
+      return null
     }
   }
 

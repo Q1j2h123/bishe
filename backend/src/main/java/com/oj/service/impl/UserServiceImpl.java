@@ -261,16 +261,24 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public UserDTO getCurrentUser(HttpServletRequest request) {
         if (request == null) {
+            log.error("获取当前用户失败：请求对象为空");
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+        
         // 从UserContext获取当前登录用户，而不是从Session
         User user = UserContext.getUser();
+        log.info("从UserContext获取用户信息：{}", user != null ? 
+            String.format("用户ID: %d, 用户名: %s", user.getId(), user.getUserName()) : "null");
+            
         if (user == null) {
+            log.error("获取当前用户失败：用户未登录");
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
+        
         // 转换为 DTO
         UserDTO userDTO = new UserDTO();
         BeanUtils.copyProperties(user, userDTO);
+        log.info("成功获取当前用户信息：用户ID: {}, 用户名: {}", userDTO.getId(), userDTO.getUserName());
         return userDTO;
     }
 

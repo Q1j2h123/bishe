@@ -92,8 +92,7 @@ public class LoginInterceptor implements HandlerInterceptor {
 
             // 设置用户上下文
             UserContext.setUser(user);
-            // 同时设置到UserHolder中
-            UserContext.getUser().setId(userId);
+            log.info("用户上下文设置成功，用户ID: {}, 用户名: {}", user.getId(), user.getUserName());
             return true;
         } catch (Exception e) {
             log.error("认证过程发生错误", e);

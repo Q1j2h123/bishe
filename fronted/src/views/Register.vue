@@ -61,9 +61,9 @@
             />
           </el-form-item>
           
-          <div class="agreement">
+          <!-- <div class="agreement">
             <el-checkbox>我已阅读并同意<a href="javascript:void(0)" class="link-text">用户协议</a>和<a href="javascript:void(0)" class="link-text">隐私政策</a></el-checkbox>
-          </div>
+          </div> -->
           
           <el-button
             type="primary"

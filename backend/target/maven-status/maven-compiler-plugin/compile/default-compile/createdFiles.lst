@@ -4,7 +4,6 @@ com\oj\model\entity\User.class
 com\oj\constant\JudgeConstant.class
 com\oj\aop\AuthInterceptor.class
 com\oj\model\entity\ChoiceProblem.class
-com\oj\model\entity\DraftSolution.class
 com\oj\model\entity\Problem.class
 com\oj\common\UserContext.class
 com\oj\mapper\UserProblemStatusMapper.class
@@ -20,7 +19,6 @@ com\oj\mapper\UserMapper.class
 com\oj\model\enums\ProblemStatusEnum.class
 com\oj\service\impl\UserServiceImpl.class
 com\oj\model\vo\dashboard\DashboardStatsVO$ProblemDistribution.class
-com\oj\model\request\DraftSolutionRequest.class
 com\oj\model\request\ProgramProblemAddRequest.class
 com\oj\service\DeepseekService.class
 com\oj\model\enums\DifficultyEnum.class
@@ -83,8 +81,6 @@ com\oj\service\impl\ProblemServiceImpl$3.class
 com\oj\model\request\ProgramSubmissionRequest.class
 com\oj\service\impl\JudgeServiceImpl.class
 com\oj\controller\ErrorProblemController.class
-com\oj\mapper\DraftSolutionMapper.class
-com\oj\service\DraftSolutionService.class
 com\oj\model\request\SubmissionRequest.class
 com\oj\model\request\TestcaseAddRequest.class
 com\oj\mapper\SubmissionMapper.class
@@ -128,7 +124,6 @@ com\oj\exception\BusinessException.class
 com\oj\model\dto\UserStatisticsDTO$TypeCount.class
 com\oj\mapper\ProgramSubmissionMapper.class
 com\oj\service\UserStatsService.class
-com\oj\controller\DraftSolutionController.class
 com\oj\mapper\ChoiceProblemMapper.class
 com\oj\service\impl\UserStatsServiceImpl.class
 com\oj\mapper\TestcaseMapper.class
@@ -163,7 +158,6 @@ com\oj\mapper\ChoiceJudgeSubmissionMapper.class
 com\oj\controller\UserStatsController.class
 com\oj\model\request\ChoiceJudgeSubmissionRequest.class
 com\oj\service\impl\AICodeExecutor.class
-com\oj\service\impl\DraftSolutionServiceImpl.class
 com\oj\utils\PasswordUtils.class
 com\oj\model\request\ChoiceProblemUpdateRequest.class
 com\oj\excel\listener\JudgeProblemImportListener.class
