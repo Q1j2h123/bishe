@@ -154,14 +154,14 @@ router.beforeEach(async (to, from, next) => {
   
   // 特别处理：登录和注册页面应该始终可以访问
   if (to.path === '/login' || to.path === '/register' || to.path === '/admin/login') {
-    // 如果已登录且要去登录/注册页，重定向到首页
+  // 如果已登录且要去登录/注册页，重定向到首页
     if (userStore.token && userStore.currentUser) {
       if (userStore.currentUser.userRole === 'admin') {
-        next('/admin/dashboard')
-      } else {
-        next('/home')
-      }
-      return
+      next('/admin/dashboard')
+    } else {
+      next('/home')
+    }
+    return
     } else {
       // 未登录或登录失败，直接进入登录/注册页
       next()
