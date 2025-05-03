@@ -145,6 +145,21 @@ public interface UserService extends IService<User> {
     boolean resetUserPassword(Long userId);
 
     /**
+     * 封禁用户
+     * @param userId 用户ID
+     * @param reason 封禁原因
+     * @return 是否封禁成功
+     */
+    boolean banUser(Long userId, String reason);
+
+    /**
+     * 解封用户
+     * @param userId 用户ID
+     * @return 是否解封成功
+     */
+    boolean unbanUser(Long userId);
+
+    /**
      * 修改用户密码
      * @param userId 用户ID
      * @param oldPassword 旧密码

@@ -138,17 +138,35 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
   
-  // 如果已登录且要去登录/注册页，重定向到首页
-  if (userStore.token && (to.path === '/login' || to.path === '/register' || to.path === '/admin/login')) {
-    if (userStore.currentUser?.userRole === 'admin') {
-      next('/admin/dashboard')
-    } else {
-      next('/home')
+  // 如果当前有token，但还没有用户信息，尝试获取用户信息
+  if (userStore.token && !userStore.currentUser) {
+    try {
+      await userStore.getCurrentUser()
+    } catch (error) {
+      console.error('获取用户信息失败', error)
+      // 获取失败时清除token，避免死循环
+      userStore.logout()
     }
-    return
+  }
+  
+  // 特别处理：登录和注册页面应该始终可以访问
+  if (to.path === '/login' || to.path === '/register' || to.path === '/admin/login') {
+    // 如果已登录且要去登录/注册页，重定向到首页
+    if (userStore.token && userStore.currentUser) {
+      if (userStore.currentUser.userRole === 'admin') {
+        next('/admin/dashboard')
+      } else {
+        next('/home')
+      }
+      return
+    } else {
+      // 未登录或登录失败，直接进入登录/注册页
+      next()
+      return
+    }
   }
   
   // 需要管理员权限的页面
@@ -160,7 +178,7 @@ router.beforeEach((to, from, next) => {
   
   // 进入需要登录的页面，但未登录时，重定向到登录页
   if (to.meta.requiresAuth && !userStore.token) {
-    ElMessage.warning('登录已过期，请重新登录')
+    ElMessage.warning('请先登录')
     next({ path: '/login', query: { redirect: to.fullPath } })
     return
   }

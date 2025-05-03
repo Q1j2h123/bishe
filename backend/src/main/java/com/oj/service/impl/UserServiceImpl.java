@@ -37,6 +37,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static com.oj.constant.UserConstant.USER_LOGIN_STATE;
+import static com.oj.constant.UserConstant.ADMIN_ROLE;
+import static com.oj.constant.UserConstant.BANNED_ROLE;
+import static com.oj.constant.UserConstant.USER_ROLE;
 
 
 @Service
@@ -125,7 +128,41 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (!passwordUtils.matches(userPassword, user.getUserPassword())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码错误");
         }
-        // 4. 用户脱敏
+        
+        // 4. 检查用户是否被封禁
+        if (BANNED_ROLE.equals(user.getUserRole())) {
+            // 从用户资料中提取封禁原因
+            String profile = user.getUserProfile();
+            String banReason = "您的账号已被管理员封禁";
+            
+            if (StringUtils.isNotBlank(profile) && profile.contains("[系统通知] 您的账号已被封禁")) {
+                // 尝试从资料中提取封禁原因
+                int banIndex = profile.indexOf("[系统通知] 您的账号已被封禁");
+                if (banIndex >= 0) {
+                    int reasonStart = profile.indexOf("原因：", banIndex);
+                    if (reasonStart >= 0) {
+                        // 包含"原因："字符串长度，确保获取到具体原因内容
+                        reasonStart += "原因：".length();
+                        int reasonEnd = profile.indexOf("\n", reasonStart);
+                        if (reasonEnd > 0) {
+                            banReason = profile.substring(reasonStart, reasonEnd);
+                        } else {
+                            banReason = profile.substring(reasonStart);
+                        }
+                        // 确保提取到的原因不为空
+                        if (StringUtils.isNotBlank(banReason)) {
+                            banReason = "您的账号已被管理员封禁，原因：" + banReason;
+                        } else {
+                            banReason = "您的账号已被管理员封禁";
+                        }
+                    }
+                }
+            }
+            
+            throw new BusinessException(ErrorCode.FORBIDDEN_ERROR, banReason);
+        }
+        
+        // 5. 用户脱敏
         user.setUserPassword(null);
         return user;
     }
@@ -429,5 +466,70 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return this.updateById(user);
     }
 
+    @Override
+    public boolean banUser(Long userId, String reason) {
+        User user = this.getById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在");
+        }
+        
+        // 不能封禁管理员
+        if (ADMIN_ROLE.equals(user.getUserRole())) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "不能封禁管理员账号");
+        }
+        
+        // 设置用户角色为封禁状态
+        user.setUserRole(BANNED_ROLE);
+        
+        // 可以在用户个人资料中记录封禁原因
+        if (StringUtils.isNotBlank(reason)) {
+            String profile = user.getUserProfile();
+            if (StringUtils.isBlank(profile)) {
+                profile = "";
+            }
+            // 将封禁原因添加到用户个人资料中
+            profile += "\n[系统通知] 您的账号已被封禁，原因：" + reason;
+            user.setUserProfile(profile);
+        }
+        
+        return this.updateById(user);
+    }
+
+    @Override
+    public boolean unbanUser(Long userId) {
+        User user = this.getById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在");
+        }
+        
+        // 如果用户已经是非封禁状态，直接返回成功
+        if (!BANNED_ROLE.equals(user.getUserRole())) {
+            return true;
+        }
+        
+        // 将用户角色设回普通用户
+        user.setUserRole(USER_ROLE);
+        
+        // 清理用户个人资料中的封禁信息，并添加解封通知
+        String profile = user.getUserProfile();
+        if (StringUtils.isNotBlank(profile)) {
+            // 使用正则表达式移除所有封禁相关的系统通知
+            profile = profile.replaceAll("\\n\\[系统通知\\] 您的账号已被封禁.*?(\\n|$)", "\n");
+            
+            // 去除可能产生的多余空行
+            profile = profile.replaceAll("\\n+", "\n").trim();
+            
+            // 添加解封通知
+            if (StringUtils.isBlank(profile)) {
+                profile = "[系统通知] 您的账号已被解封，请遵守平台规则。";
+            } else {
+                profile += "\n[系统通知] 您的账号已被解封，请遵守平台规则。";
+            }
+            
+            user.setUserProfile(profile);
+        }
+        
+        return this.updateById(user);
+    }
 
 } 

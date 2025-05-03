@@ -10,6 +10,16 @@
         <h2 class="welcome-text">欢迎回来</h2>
         <p class="subtitle">登录您的账号，继续编程之旅</p>
         
+        <!-- 添加错误信息显示 -->
+        <el-alert
+          v-if="loginError"
+          :title="loginError"
+          type="error"
+          :closable="true"
+          show-icon
+          style="margin-bottom: 20px;"
+        />
+        
         <el-form
           ref="formRef"
           :model="loginForm"
@@ -91,6 +101,9 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
+// 添加登录错误信息状态
+const loginError = ref('')
+
 // 登录表单
 const loginForm = reactive({
   userAccount: '',
@@ -120,7 +133,12 @@ const handleLogin = async () => {
   try {
     await formRef.value.validate()
     loading.value = true
+    // 清除之前的错误
+    loginError.value = ''
     console.log('开始登录请求...')
+    
+    // 确保先清理可能存在的旧登录信息，防止封禁用户信息残留
+    userStore.logout()
     
     await userStore.login(loginForm)
     
@@ -131,7 +149,16 @@ const handleLogin = async () => {
     router.push(redirectPath)
   } catch (error: any) {
     console.error('登录失败:', error)
-    ElMessage.error(error.message || '登录失败，请稍后重试')
+    // 设置错误信息，优先显示错误消息，如果没有则显示通用错误
+    loginError.value = error.message || '登录失败，请稍后重试'
+    // 特别处理封禁信息，使用更醒目的显示方式
+    if (error.message && error.message.includes('已被封禁')) {
+      loginError.value = error.message
+      // 使用console.log记录详细的错误信息，帮助调试
+      console.warn('用户被封禁:', error.message)
+      // 确保封禁用户不会保留登录状态
+      userStore.logout()
+    }
   } finally {
     loading.value = false
   }
@@ -235,6 +262,23 @@ const goToRegister = () => {
 
 .login-form :deep(.el-input__wrapper:hover) {
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+
+/* 添加错误信息样式 */
+.el-alert {
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.el-alert :deep(.el-alert__title) {
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap; /* 允许换行显示 */
+}
+
+/* 添加对封禁信息的特殊样式 */
+.el-alert.el-alert--error :deep(.el-alert__title) {
+  font-weight: bold; /* 加粗显示 */
 }
 
 .login-options {

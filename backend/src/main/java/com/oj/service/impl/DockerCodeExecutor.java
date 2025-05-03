@@ -190,51 +190,42 @@ public class DockerCodeExecutor implements CodeExecutor {
      * 编译Java代码
      */
     private CompileResult compileJava(String code, String workspacePath) throws IOException, InterruptedException {
-        // 写入代码文件
-        String className = "Solution";
-        
-        // 生成包装类，包含main方法，用于处理输入和调用用户代码
-        String wrapperClass = generateJavaWrapper(code);
-        
-        // 写入包装类的Main.java文件
-        File mainFile = new File(workspacePath + "/Main.java");
-        FileUtils.writeStringToFile(mainFile, wrapperClass, StandardCharsets.UTF_8);
-        
-        // 同时也保存用户原始代码文件，以便能够正确编译引用
-        File sourceFile = new File(workspacePath + "/" + className + ".java");
+        // 写入代码文件 - 类似C语言直接保存用户代码
+        String filename = "Solution.java";
+        File sourceFile = new File(workspacePath + "/" + filename);
         FileUtils.writeStringToFile(sourceFile, code, StandardCharsets.UTF_8);
-        
+
         // 拉取Docker镜像
         dockerClient.pullImageCmd(JudgeConstant.DOCKER_IMAGE_JAVA)
                 .exec(new PullImageResultCallback())
                 .awaitCompletion(30, TimeUnit.SECONDS);
-        
+
         // 创建Volume
         Volume volume = new Volume("/code");
-        
-        // 创建容器 - 编译两个文件
+
+        // 创建容器 - 直接编译用户Java文件
         CreateContainerResponse container = dockerClient.createContainerCmd(JudgeConstant.DOCKER_IMAGE_JAVA)
                 .withHostConfig(HostConfig.newHostConfig()
                         .withBinds(new Bind(workspacePath, volume))
                         .withMemory(128 * 1024 * 1024L) // 128MB
                         .withCpuCount(1L))
                 .withWorkingDir("/code")
-                .withCmd("javac", "Main.java", className + ".java")
+                .withCmd("javac", filename)
                 .exec();
-        
+
         // 启动容器
         dockerClient.startContainerCmd(container.getId()).exec();
-        
+
         // 等待容器完成 - 使用回调
         WaitContainerResultCallback waitCallback = new WaitContainerResultCallback();
         dockerClient.waitContainerCmd(container.getId()).exec(waitCallback);
         waitCallback.awaitCompletion();
-        
-        // 检查编译结果 - 主要检查Main.class是否存在
-        File mainClassFile = new File(workspacePath + "/Main.class");
-        boolean success = mainClassFile.exists();
+
+        // 检查编译结果
+        File classFile = new File(workspacePath + "/Solution.class");
+        boolean success = classFile.exists();
         String errorMessage = "";
-        
+
         if (!success) {
             // 获取容器日志
             LogContainerResultCallback logCallback = new LogContainerResultCallback();
@@ -245,165 +236,18 @@ public class DockerCodeExecutor implements CodeExecutor {
             logCallback.awaitCompletion(10, TimeUnit.SECONDS);
             errorMessage = logCallback.toString();
         }
-        
+
         // 移除容器
         dockerClient.removeContainerCmd(container.getId()).exec();
-        
+
         return CompileResult.builder()
                 .success(success)
                 .errorMessage(errorMessage)
-                .compiledFilePath(success ? workspacePath + "/Main.class" : null)
+                .compiledFilePath(success ? workspacePath + "/Solution.class" : null)
                 .build();
     }
     
-    /**
-     * 生成Java包装类，包含main方法，处理输入并调用用户代码
-     */
-    private String generateJavaWrapper(String userCode) {
-        // 分析用户代码，检测常见的方法签名
-        boolean isTwoSum = userCode.contains("public int[] twoSum(int[] nums, int target)");
-        boolean isPalindrome = userCode.contains("public boolean isPalindrome(");
-        boolean isMaxSubArray = userCode.contains("public int maxSubArray(int[] nums)");
-        boolean isReverseString = userCode.contains("public String reverse(String");
-        boolean isFibonacci = userCode.contains("public int fibonacci(int n)") || userCode.contains("public int fib(int n)");
-        boolean isSortArray = userCode.contains("public int[] sort") || userCode.contains("public void sort");
-        
-        StringBuilder wrapper = new StringBuilder();
-        wrapper.append("import java.util.*;\n");
-        wrapper.append("import java.io.*;\n\n");
-        wrapper.append("public class Main {\n");
-        wrapper.append("    public static void main(String[] args) {\n");
-        wrapper.append("        try {\n");
-        wrapper.append("            Scanner scanner = new Scanner(System.in);\n");
-        wrapper.append("            String line = scanner.nextLine().trim();\n");
-        wrapper.append("            Solution solution = new Solution();\n\n");
-        
-        // 根据不同的问题类型，生成相应的输入处理和方法调用代码
-        if (isTwoSum) {
-            // 处理两数之和问题
-            wrapper.append("            // 解析输入格式：数组元素空格分隔，最后一个数为target\n");
-            wrapper.append("            String[] parts = line.split(\" \");\n");
-            wrapper.append("            int[] nums = new int[parts.length - 1];\n");
-            wrapper.append("            for (int i = 0; i < parts.length - 1; i++) {\n");
-            wrapper.append("                nums[i] = Integer.parseInt(parts[i]);\n");
-            wrapper.append("            }\n");
-            wrapper.append("            int target = Integer.parseInt(parts[parts.length - 1]);\n\n");
-            wrapper.append("            // 调用用户实现的方法\n");
-            wrapper.append("            int[] result = solution.twoSum(nums, target);\n\n");
-            wrapper.append("            // 输出结果\n");
-            wrapper.append("            if (result != null && result.length > 0) {\n");
-            wrapper.append("                StringBuilder sb = new StringBuilder();\n");
-            wrapper.append("                for (int i = 0; i < result.length; i++) {\n");
-            wrapper.append("                    sb.append(result[i]);\n");
-            wrapper.append("                    if (i < result.length - 1) sb.append(\" \");\n");
-            wrapper.append("                }\n");
-            wrapper.append("                System.out.println(sb.toString());\n");
-            wrapper.append("            }\n");
-        } else if (isPalindrome) {
-            // 处理回文字符串或数字判断问题
-            wrapper.append("            // 解析输入（可能是字符串或整数）\n");
-            wrapper.append("            boolean result;\n");
-            wrapper.append("            if (userCode.contains(\"isPalindrome(String\")) {\n");
-            wrapper.append("                // 字符串回文\n");
-            wrapper.append("                result = solution.isPalindrome(line);\n");
-            wrapper.append("            } else {\n");
-            wrapper.append("                // 数值回文\n");
-            wrapper.append("                int num = Integer.parseInt(line);\n");
-            wrapper.append("                result = solution.isPalindrome(num);\n");
-            wrapper.append("            }\n");
-            wrapper.append("            System.out.println(result);\n");
-        } else if (isMaxSubArray) {
-            // 处理最大子数组和问题
-            wrapper.append("            // 解析输入：空格分隔的数组\n");
-            wrapper.append("            String[] parts = line.split(\" \");\n");
-            wrapper.append("            int[] nums = new int[parts.length];\n");
-            wrapper.append("            for (int i = 0; i < parts.length; i++) {\n");
-            wrapper.append("                nums[i] = Integer.parseInt(parts[i]);\n");
-            wrapper.append("            }\n");
-            wrapper.append("            int result = solution.maxSubArray(nums);\n");
-            wrapper.append("            System.out.println(result);\n");
-        } else if (isReverseString) {
-            // 处理字符串反转问题
-            wrapper.append("            // 直接使用输入行作为字符串\n");
-            wrapper.append("            String result = solution.reverse(line);\n");
-            wrapper.append("            System.out.println(result);\n");
-        } else if (isFibonacci) {
-            // 处理斐波那契数列问题
-            wrapper.append("            // 解析输入为单个数字\n");
-            wrapper.append("            int n = Integer.parseInt(line);\n");
-            wrapper.append("            int result;\n");
-            wrapper.append("            if (userCode.contains(\"fibonacci\")) {\n");
-            wrapper.append("                result = solution.fibonacci(n);\n");
-            wrapper.append("            } else {\n");
-            wrapper.append("                result = solution.fib(n);\n");
-            wrapper.append("            }\n");
-            wrapper.append("            System.out.println(result);\n");
-        } else if (isSortArray) {
-            // 处理数组排序问题
-            wrapper.append("            // 解析输入：空格分隔的数组\n");
-            wrapper.append("            String[] parts = line.split(\" \");\n");
-            wrapper.append("            int[] nums = new int[parts.length];\n");
-            wrapper.append("            for (int i = 0; i < parts.length; i++) {\n");
-            wrapper.append("                nums[i] = Integer.parseInt(parts[i]);\n");
-            wrapper.append("            }\n");
-            wrapper.append("            \n");
-            wrapper.append("            int[] result;\n");
-            wrapper.append("            if (userCode.contains(\"public int[] sort\")) {\n");
-            wrapper.append("                // 返回新数组的排序方法\n");
-            wrapper.append("                result = solution.sort(nums);\n");
-            wrapper.append("            } else {\n");
-            wrapper.append("                // void 排序方法，修改原数组\n");
-            wrapper.append("                solution.sort(nums);\n");
-            wrapper.append("                result = nums;\n");
-            wrapper.append("            }\n");
-            wrapper.append("            \n");
-            wrapper.append("            // 输出结果\n");
-            wrapper.append("            StringBuilder sb = new StringBuilder();\n");
-            wrapper.append("            for (int i = 0; i < result.length; i++) {\n");
-            wrapper.append("                sb.append(result[i]);\n");
-            wrapper.append("                if (i < result.length - 1) sb.append(\" \");\n");
-            wrapper.append("            }\n");
-            wrapper.append("            System.out.println(sb.toString());\n");
-        } else {
-            // 通用处理逻辑 - 尝试解析方法名和参数
-            wrapper.append("            // 通用处理逻辑\n");
-            wrapper.append("            String[] inputs = line.split(\" \");\n");
-            wrapper.append("            \n");
-            wrapper.append("            // 解析用户代码，寻找主要方法\n");
-            wrapper.append("            String methodCall = findMainMethod(userCode, inputs);\n");
-            wrapper.append("            if (methodCall != null) {\n");
-            wrapper.append("                // 使用反射调用用户方法\n");
-            wrapper.append("                try {\n");
-            wrapper.append("                    Class<?> solutionClass = Solution.class;\n");
-            wrapper.append("                    Object result = solutionClass.getMethod(methodCall).invoke(solution);\n");
-            wrapper.append("                    System.out.println(result);\n");
-            wrapper.append("                } catch (Exception e) {\n");
-            wrapper.append("                    System.err.println(\"无法调用方法: \" + e.getMessage());\n");
-            wrapper.append("                }\n");
-            wrapper.append("            } else {\n");
-            wrapper.append("                // 无法确定方法，输出提示\n");
-            wrapper.append("                System.out.println(\"无法确定要调用的方法，请提供具体测试代码\");\n");
-            wrapper.append("            }\n");
-        }
-        
-        wrapper.append("        } catch (Exception e) {\n");
-        wrapper.append("            System.err.println(\"执行过程出错: \" + e.getMessage());\n");
-        wrapper.append("            e.printStackTrace();\n");
-        wrapper.append("        }\n");
-        wrapper.append("    }\n\n");
-        
-        // 添加通用的方法查找辅助函数
-        wrapper.append("    // 尝试从用户代码中找到主要方法\n");
-        wrapper.append("    private static String findMainMethod(String code, String[] inputs) {\n");
-        wrapper.append("        // 简单实现，实际应考虑更复杂的代码解析\n");
-        wrapper.append("        // 在这里实现方法检测逻辑\n");
-        wrapper.append("        return null; // 返回方法名\n");
-        wrapper.append("    }\n");
-        
-        wrapper.append("}\n");
-        
-        return wrapper.toString();
-    }
+
     
     /**
      * 编译Python代码（Python无需编译，仅进行语法检查）
@@ -529,16 +373,16 @@ public class DockerCodeExecutor implements CodeExecutor {
      * 执行Java代码
      */
     private ExecutionResult executeJava(String compiledFilePath, String workspacePath, Long timeLimit, Long memoryLimit) throws InterruptedException {
-        // 注意：现在我们使用Main类而不是Solution类
-        String className = "Main";
-        
+        // 直接使用用户的类
+        String className = "Solution";
+
         // 创建Volume
         Volume volume = new Volume("/code");
-        
+
         // 记录开始时间
         long startTime = System.currentTimeMillis();
-        
-        // 创建容器 - 运行Main类
+
+        // 创建容器 - 运行用户提交的类
         CreateContainerResponse container = dockerClient.createContainerCmd(JudgeConstant.DOCKER_IMAGE_JAVA)
                 .withHostConfig(HostConfig.newHostConfig()
                         .withBinds(new Bind(workspacePath, volume))
@@ -547,10 +391,10 @@ public class DockerCodeExecutor implements CodeExecutor {
                 .withWorkingDir("/code")
                 .withCmd("sh", "-c", "java -Xmx" + (memoryLimit / 1024) + "m " + className + " < input.txt > output.txt 2>error.txt")
                 .exec();
-        
+
         // 启动容器
         dockerClient.startContainerCmd(container.getId()).exec();
-        
+
         // 等待容器完成（带超时）
         boolean timedOut = false;
         try {
@@ -560,10 +404,10 @@ public class DockerCodeExecutor implements CodeExecutor {
         } catch (Exception e) {
             timedOut = true;
         }
-        
+
         // 计算执行时间
         long executeTime = System.currentTimeMillis() - startTime;
-        
+
         // 获取容器统计信息以计算内存使用
         long memoryUsage = 0L;
         try {
@@ -571,16 +415,15 @@ public class DockerCodeExecutor implements CodeExecutor {
         } catch (Exception e) {
             log.warn("获取容器内存使用统计信息失败: {}", e.getMessage());
         }
-        
+
         // 获取结果
         ExecutionResult result = getExecutionResult(workspacePath, timedOut, executeTime, memoryUsage);
-        
+
         // 移除容器
         dockerClient.removeContainerCmd(container.getId()).exec();
-        
+
         return result;
     }
-    
     /**
      * 执行Python代码
      */

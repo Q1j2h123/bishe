@@ -23,6 +23,6 @@ export interface CodeRunResult {
 export const codeRunApi = {
   // 运行代码
   runCode(data: CodeRunRequest): Promise<BaseResponse<CodeRunResult>> {
-    return request.post('execution/run', data)
+    return request.post('judge/run', data)
   }
 } 

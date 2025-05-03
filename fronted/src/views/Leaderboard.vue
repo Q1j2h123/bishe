@@ -88,3 +88,21 @@ const router = useRouter()
   padding: 40px 0;
 }
 </style>  -->
+
+
+<template>
+  <div class="leaderboard-container">
+    <h2>排行榜</h2>
+    <!-- 排行榜内容 -->
+  </div>
+</template>
+
+<script setup lang="ts">
+// 排行榜逻辑代码
+</script>
+
+<style scoped>
+.leaderboard-container {
+  padding: 20px;
+}
+</style>

@@ -18,4 +18,9 @@ public interface UserConstant {
      * 普通用户角色
      */
     String USER_ROLE = "user";
+    
+    /**
+     * 封禁用户角色
+     */
+    String BANNED_ROLE = "banned";
 } 

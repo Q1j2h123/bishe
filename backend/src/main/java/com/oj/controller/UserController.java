@@ -241,6 +241,28 @@ public class UserController {
     }
 
     /**
+     * 封禁用户
+     */
+    @PostMapping("/manage/ban/{userId}")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @ApiOperation(value = "封禁用户", notes = "管理员封禁用户账号")
+    public BaseResponse<Boolean> banUser(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String reason) {
+        return ResultUtils.success(userService.banUser(userId, reason));
+    }
+
+    /**
+     * 解封用户
+     */
+    @PostMapping("/manage/unban/{userId}")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @ApiOperation(value = "解封用户", notes = "管理员解封被封禁的用户账号")
+    public BaseResponse<Boolean> unbanUser(@PathVariable Long userId) {
+        return ResultUtils.success(userService.unbanUser(userId));
+    }
+
+    /**
      * 修改用户密码
      */
 //    @PostMapping("/update-password")

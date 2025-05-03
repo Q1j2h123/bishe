@@ -7,6 +7,7 @@ import com.oj.model.entity.User;
 import com.oj.service.TokenBlacklistService;
 import com.oj.service.UserService;
 import com.oj.utils.JwtUtils;
+import com.oj.constant.UserConstant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -87,6 +88,13 @@ public class LoginInterceptor implements HandlerInterceptor {
             if (user == null) {
                 log.error("认证失败: 用户不存在");
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return false;
+            }
+
+            // 检查用户是否被封禁
+            if (UserConstant.BANNED_ROLE.equals(user.getUserRole())) {
+                log.error("认证失败: 用户已被封禁, 用户ID: {}", userId);
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN); // 使用403表示被禁止访问
                 return false;
             }
 

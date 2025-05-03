@@ -1,5 +1,6 @@
 package com.oj.model.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,7 +18,9 @@ import java.io.Serializable;
 public class TestcaseResult implements Serializable {
     /**
      * 测试用例ID
+     *
      */
+    @JsonIgnore
     private Long testcaseId;
     
     /**

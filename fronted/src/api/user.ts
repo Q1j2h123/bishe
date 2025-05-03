@@ -234,5 +234,50 @@ export const userApi = {
       console.error('重置密码错误:', error)
       throw error
     }
+  },
+  
+  // 封禁用户
+  async banUser(userId: number, reason?: string) {
+    try {
+      let url = `/user/manage/ban/${userId}`;
+      if (reason) {
+        url += `?reason=${encodeURIComponent(reason)}`;
+      }
+      
+      const response: any = await request.post(url);
+      
+      if (!response) {
+        throw new Error('封禁用户失败，服务器未返回有效数据');
+      }
+      
+      if (response.code !== 0) {
+        throw new Error(response.message || '封禁用户失败');
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('封禁用户错误:', error);
+      throw error;
+    }
+  },
+  
+  // 解封用户
+  async unbanUser(userId: number) {
+    try {
+      const response: any = await request.post(`/user/manage/unban/${userId}`);
+      
+      if (!response) {
+        throw new Error('解封用户失败，服务器未返回有效数据');
+      }
+      
+      if (response.code !== 0) {
+        throw new Error(response.message || '解封用户失败');
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('解封用户错误:', error);
+      throw error;
+    }
   }
 } 

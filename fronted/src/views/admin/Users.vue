@@ -41,24 +41,40 @@
         <el-table-column prop="userName" label="用户名" />
         <el-table-column prop="userRole" label="角色">
           <template #default="{ row }">
-            <el-tag :type="row.userRole === 'admin' ? 'danger' : 'success'">
-              {{ row.userRole === 'admin' ? '管理员' : '普通用户' }}
+            <el-tag :type="row.userRole === 'admin' ? 'danger' : row.userRole === 'banned' ? 'info' : 'success'">
+              {{ row.userRole === 'admin' ? '管理员' : row.userRole === 'banned' ? '已封禁' : '普通用户' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="注册时间" />
-        <el-table-column label="操作" width="200">
+        <el-table-column label="操作" width="280">
           <template #default="{ row }">
             <el-button-group>
               <el-button type="primary" link @click="handleView(row)">
                 查看
               </el-button>
-              <el-button type="primary" link @click="handleEditRole(row)">
-                修改角色
-              </el-button>
               <el-button type="danger" link @click="handleResetPassword(row)">
                 重置密码
               </el-button>
+              <!-- 管理员不能被封禁，已封禁用户显示解封按钮，其他用户显示封禁按钮 -->
+              <template v-if="row.userRole !== 'admin'">
+                <el-button 
+                  v-if="row.userRole === 'banned'" 
+                  type="success" 
+                  link 
+                  @click="handleUnban(row)"
+                >
+                  解封
+                </el-button>
+                <el-button 
+                  v-else 
+                  type="warning" 
+                  link 
+                  @click="handleBan(row)"
+                >
+                  封禁
+                </el-button>
+              </template>
             </el-button-group>
           </template>
         </el-table-column>
@@ -87,7 +103,11 @@
       <el-descriptions :column="2" border>
         <el-descriptions-item label="账号">{{ currentUser?.userAccount }}</el-descriptions-item>
         <el-descriptions-item label="用户名">{{ currentUser?.userName }}</el-descriptions-item>
-        <el-descriptions-item label="角色">{{ currentUser?.userRole === 'admin' ? '管理员' : '普通用户' }}</el-descriptions-item>
+        <el-descriptions-item label="角色">
+          <el-tag :type="currentUser?.userRole === 'admin' ? 'danger' : currentUser?.userRole === 'banned' ? 'info' : 'success'">
+            {{ currentUser?.userRole === 'admin' ? '管理员' : currentUser?.userRole === 'banned' ? '已封禁' : '普通用户' }}
+          </el-tag>
+        </el-descriptions-item>
         <el-descriptions-item label="注册时间">{{ formatDate(currentUser?.createTime) }}</el-descriptions-item>
         <el-descriptions-item label="提交次数">{{ currentUser?.submissionCount || 0 }}</el-descriptions-item>
         <el-descriptions-item label="通过次数">{{ currentUser?.acceptedCount || 0 }}</el-descriptions-item>
@@ -107,14 +127,15 @@
     >
       <el-form :model="roleForm" label-width="80px">
         <el-form-item label="当前角色">
-          <el-tag :type="currentUser?.userRole === 'admin' ? 'danger' : 'success'">
-            {{ currentUser?.userRole === 'admin' ? '管理员' : '普通用户' }}
+          <el-tag :type="currentUser?.userRole === 'admin' ? 'danger' : currentUser?.userRole === 'banned' ? 'info' : 'success'">
+            {{ currentUser?.userRole === 'admin' ? '管理员' : currentUser?.userRole === 'banned' ? '已封禁' : '普通用户' }}
           </el-tag>
         </el-form-item>
         <el-form-item label="新角色">
           <el-select v-model="roleForm.newRole">
             <el-option label="普通用户" value="user" />
             <el-option label="管理员" value="admin" />
+            <el-option label="封禁用户" value="banned" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -122,6 +143,33 @@
         <el-button @click="roleDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleUpdateRole" :loading="updating">
           确认
+        </el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 封禁用户对话框 -->
+    <el-dialog
+      v-model="banDialogVisible"
+      title="封禁用户"
+      width="400px"
+    >
+      <el-form :model="banForm" label-width="80px">
+        <el-form-item label="用户">
+          <span>{{ currentUser?.userName }} ({{ currentUser?.userAccount }})</span>
+        </el-form-item>
+        <el-form-item label="封禁原因" prop="reason">
+          <el-input
+            v-model="banForm.reason"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入封禁原因"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="banDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmBan" :loading="updating">
+          确认封禁
         </el-button>
       </template>
     </el-dialog>
@@ -157,11 +205,17 @@ const userList = ref<UserListVO[]>([])
 // 对话框控制
 const dialogVisible = ref(false)
 const roleDialogVisible = ref(false)
+const banDialogVisible = ref(false)
 const currentUser = ref<UserManageVO | null>(null)
 
 // 角色表单
 const roleForm = reactive({
   newRole: ''
+})
+
+// 封禁表单
+const banForm = reactive({
+  reason: ''
 })
 
 // 加载用户列表
@@ -223,7 +277,7 @@ const handleView = async (row: UserListVO) => {
 // 修改角色
 const handleEditRole = (row: UserListVO) => {
   currentUser.value = row as any
-  roleForm.newRole = row.userRole === 'admin' ? 'admin' : 'user'
+  roleForm.newRole = row.userRole || 'user'
   roleDialogVisible.value = true
 }
 
@@ -322,6 +376,61 @@ const formatDate = (date: string | undefined | null) => {
     minute: '2-digit',
     second: '2-digit'
   })
+}
+
+// 封禁用户
+const handleBan = (row: UserListVO) => {
+  currentUser.value = row as any
+  banForm.reason = ''  // 重置封禁原因
+  banDialogVisible.value = true
+}
+
+// 确认封禁
+const confirmBan = async () => {
+  if (!currentUser.value) {
+    ElMessage.warning('当前用户信息不存在')
+    return
+  }
+  
+  if (!banForm.reason) {
+    ElMessage.warning('请输入封禁原因')
+    return
+  }
+
+  updating.value = true
+  try {
+    console.log('正在封禁用户:', {
+      userId: currentUser.value.id,
+      reason: banForm.reason
+    })
+    
+    await userApi.banUser(currentUser.value.id, banForm.reason)
+    ElMessage.success('封禁用户成功')
+    banDialogVisible.value = false
+    loadUserList()
+  } catch (error: any) {
+    console.error('封禁用户失败:', error)
+    ElMessage.error(error.message || '封禁用户失败')
+  } finally {
+    updating.value = false
+  }
+}
+
+// 解封用户
+const handleUnban = async (row: UserListVO) => {
+  try {
+    await ElMessageBox.confirm('确定要解封该用户吗？', '提示', {
+      type: 'warning'
+    })
+    
+    await userApi.unbanUser(row.id)
+    ElMessage.success('解封用户成功')
+    loadUserList()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '解封用户失败')
+    }
+  }
 }
 
 onMounted(() => {

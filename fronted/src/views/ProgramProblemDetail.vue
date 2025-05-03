@@ -26,17 +26,6 @@
             </div>
           </div>
           
-          <!-- 函数签名信息 -->
-          <div class="function-signature" v-if="problem">
-            <h3>函数签名</h3>
-            <el-alert
-              type="info"
-              :closable="false"
-            >
-              <pre class="function-def">{{ generateFunctionSignature() }}</pre>
-            </el-alert>
-          </div>
-          
           <!-- 示例测试用例 -->
           <div class="test-cases" v-if="problem && problem.testCases && problem.testCases.length > 0">
             <h3>示例用例</h3>
@@ -173,12 +162,15 @@
         :closable="false"
         show-icon
       >
-        <pre class="result-content">{{ resultInfo.content }}</pre>
+        <div class="result-content markdown-body" v-html="renderMarkdown(resultInfo.content)"></div>
+        <div class="result-actions" v-if="standardSolution && !showStandardSolution">
+          <el-button size="small" type="primary" @click="askToShowStandardSolution">查看标准答案</el-button>
+        </div>
       </el-alert>
     </div>
 
     <!-- 新增标准答案展示区域 -->
-    <div class="standard-solution" v-if="standardSolution">
+    <div class="standard-solution" v-if="showStandardSolution">
       <h3>标准答案参考</h3>
       <el-card>
         <pre class="solution-code">{{ standardSolution }}</pre>
@@ -265,6 +257,7 @@ const runResults = ref<RunResult>({
 
 // 新增在顶部变量定义区域
 const standardSolution = ref<string>('');
+const showStandardSolution = ref<boolean>(false);
 const resultInfo = ref<{
   show: boolean;
   content: string;
@@ -449,31 +442,18 @@ const updateCodeTemplate = () => {
     return;
   }
   
-  let template = problem.value.templates[selectedLanguage.value];
-  if (template) {
-    // 修正模板中的输入分隔符
-    template = correctInputDelimiter(template, selectedLanguage.value);
-    
-    // 更新code值
-    code.value = template;
-    
-    console.log(`已加载${selectedLanguage.value}语言模板`);
-  }
+  // 不再加载默认模板，而是设置为空字符串
+  code.value = '';
+  
+  console.log(`已将${selectedLanguage.value}语言编辑器设置为空白`);
 };
 
 // 重置代码
 const resetCode = () => {
-  if (!problem.value || !problem.value.templates || !selectedLanguage.value) {
-    return;
-  }
+  // 重置为空白
+  code.value = '';
   
-  const template = problem.value.templates[selectedLanguage.value];
-  if (template) {
-    // 更新code值
-    code.value = template;
-    
-    ElMessage.info('已重置代码为初始模板');
-  }
+  ElMessage.info('已重置代码为空白');
 };
 
 // 运行代码
@@ -620,6 +600,8 @@ const handlePollResult = async (result: any) => {
         // 获取标准答案并显示
         if (detail.standardSolution && selectedLanguage.value) {
           standardSolution.value = detail.standardSolution[selectedLanguage.value] || '';
+          // 不自动显示标准答案
+          showStandardSolution.value = false;
         }
         
         // 设置结果信息
@@ -704,8 +686,26 @@ const handlePollResult = async (result: any) => {
       ).then(() => {
         returnToList();
       }).catch(() => {
-        // 用户选择继续编写，不做操作
-        // 但仍然清除缓存，确保状态一致性
+        // 用户选择继续编写，询问是否查看标准答案
+        // if (standardSolution.value) {
+        //   ElMessageBox.confirm(
+        //     '是否查看此题的标准答案？',
+        //     '查看标准答案',
+        //     {
+        //       confirmButtonText: '查看',
+        //       cancelButtonText: '不查看',
+        //       type: 'info'
+        //     }
+        //   ).then(() => {
+        //     // 用户选择查看标准答案
+        //     showStandardSolution.value = true;
+        //   }).catch(() => {
+        //     // 用户选择不查看标准答案
+        //     showStandardSolution.value = false;
+        //   });
+        // }
+        
+        // 清除缓存，确保状态一致性
         for (const key of cacheKeys) {
           try {
             localStorage.removeItem(key);
@@ -964,9 +964,11 @@ const loadProblem = async (id?: number | string): Promise<void> => {
       
       // 设置默认代码
       if (problem.value.templates && problem.value.templates[selectedLanguage.value]) {
-        code.value = problem.value.templates[selectedLanguage.value]
+        // 将默认代码设置为空字符串，而不是加载模板
+        code.value = '';
       } else {
-        code.value = generateFunctionSignature()
+        // 不再生成函数签名
+        code.value = '';
       }
       
       // 调试信息
@@ -1017,6 +1019,16 @@ onMounted(() => {
   // watchEffect会自动触发加载
   console.log('ProgramProblemDetail组件已挂载，路由参数:', route.params)
 })
+
+// 添加一个询问是否查看标准答案的方法
+const askToShowStandardSolution = () => {
+  if (standardSolution.value) {
+    // 直接显示标准答案，不再显示确认对话框
+    showStandardSolution.value = true;
+  } else {
+    ElMessage.info('当前没有可用的标准答案');
+  }
+};
 </script>
 
 <style scoped>
@@ -1286,8 +1298,46 @@ onMounted(() => {
 }
 
 .result-content {
-  white-space: pre-wrap;
+  white-space: normal;
   word-wrap: break-word;
+}
+
+.result-content :deep(h1), 
+.result-content :deep(h2), 
+.result-content :deep(h3),
+.result-content :deep(h4), 
+.result-content :deep(h5), 
+.result-content :deep(h6) {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  color: #303133;
+}
+
+.result-content :deep(code) {
+  background-color: #f0f0f0;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.9em;
+  color: #333;
+}
+
+.result-content :deep(pre) {
+  background-color: #f5f5f5;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+  overflow-x: auto;
+}
+
+.result-content :deep(p) {
+  margin: 0.5em 0;
+}
+
+.result-content :deep(ul), .result-content :deep(ol) {
+  padding-left: 2em;
+  margin: 0.5em 0;
 }
 
 .standard-solution {
@@ -1369,5 +1419,11 @@ onMounted(() => {
 
 :deep(.md-toolbar-item) {
   margin: 0 2px;
+}
+
+.result-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

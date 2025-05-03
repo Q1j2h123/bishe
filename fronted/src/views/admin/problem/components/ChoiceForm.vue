@@ -56,6 +56,12 @@
   import { ElMessage } from 'element-plus'
   import { Delete } from '@element-plus/icons-vue'
   
+  // 定义选项接口
+  interface Option {
+    content: string;
+    isCorrect: boolean;
+  }
+  
   const props = defineProps({
     modelValue: {
       type: Object,
@@ -65,7 +71,7 @@
   
   // 检查是否至少有一个正确选项
   const hasCorrectOption = computed(() => {
-    return props.modelValue.options && props.modelValue.options.some(option => option.isCorrect);
+    return props.modelValue.options && props.modelValue.options.some((option: Option) => option.isCorrect);
   })
   
   // 添加选项
@@ -85,7 +91,7 @@
     
     // 检查是否要删除的是唯一的正确选项
     const isRemovingOnlyCorrect = props.modelValue.options[index].isCorrect && 
-      props.modelValue.options.filter(opt => opt.isCorrect).length === 1;
+      props.modelValue.options.filter((opt: Option) => opt.isCorrect).length === 1;
     
     if (isRemovingOnlyCorrect) {
       ElMessage.warning('不能删除唯一的正确选项，请先将另一个选项设为正确');

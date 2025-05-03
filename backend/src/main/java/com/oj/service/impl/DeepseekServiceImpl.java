@@ -5,7 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oj.constant.JudgeConstant;
 import com.oj.model.dto.ExecutionResult;
 import com.oj.service.DeepseekService;
-import com.oj.util.JudgeContextHolder;
+
+import com.oj.utils.JudgeContextHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Assert;
 import org.junit.Test;
@@ -99,15 +100,15 @@ public class DeepseekServiceImpl implements DeepseekService {
             return "无法获取具体错误信息：" + e.getMessage();
         }
     }
-    
+
     @Override
     public ExecutionResult evaluateCode(String compiledCode, String input, String language) {
         log.info("评估代码执行结果，语言: {}, 输入: {}", language, input);
-        
+
         try {
             // 获取真实代码
             String realCode = extractRealCode(compiledCode);
-            
+
             if (realCode.startsWith("//") && realCode.contains("无法获取原始代码")) {
                 log.error("无法获取原始代码，评估失败");
                 return ExecutionResult.builder()
@@ -116,7 +117,7 @@ public class DeepseekServiceImpl implements DeepseekService {
                         .errorMessage("无法获取原始代码，无法执行")
                         .build();
             }
-            
+
             String prompt = String.format(
                     "请执行以下%s代码，并分析其性能。输入是：\n\"%s\"\n\n代码：\n%s\n\n" +
                     "必须返回以下JSON格式（不要返回其他格式或代码）：\n" +
@@ -128,21 +129,21 @@ public class DeepseekServiceImpl implements DeepseekService {
                     "  \"errorMessage\": \"错误信息（如有）\"\n" +
                     "}",
                     language, input, realCode);
-            
+
             String response = callAI(prompt);
-            
+
             // 从回复中提取JSON部分
             String jsonStr = extractJson(response);
             JsonNode jsonNode = objectMapper.readTree(jsonStr);
-            
+
             boolean success = jsonNode.has("success") ? jsonNode.get("success").asBoolean() : false;
             String output = jsonNode.has("output") ? jsonNode.get("output").asText() : "";
             Long executionTime = jsonNode.has("executionTime") ? jsonNode.get("executionTime").asLong() : 100L;
             Long memoryUsage = jsonNode.has("memoryUsage") ? jsonNode.get("memoryUsage").asLong() : 10240L;
             String errorMessage = jsonNode.has("errorMessage") ? jsonNode.get("errorMessage").asText() : "";
-            
+
             String status = success ? JudgeConstant.STATUS_ACCEPTED : JudgeConstant.STATUS_RUNTIME_ERROR;
-            
+
             return ExecutionResult.builder()
                     .success(success)
                     .status(status)
@@ -160,7 +161,7 @@ public class DeepseekServiceImpl implements DeepseekService {
                     .build();
         }
     }
-    
+
     /**
      * 通用AI调用方法，从配置中读取参数，构建请求
      */

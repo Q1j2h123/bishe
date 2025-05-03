@@ -6,7 +6,7 @@ import com.oj.model.dto.ExecutionResult;
 import com.oj.service.CodeExecutor;
 import com.oj.service.DeepseekService;
 import com.oj.service.OpenAIService;
-import com.oj.util.JudgeContextHolder;
+import com.oj.utils.JudgeContextHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;

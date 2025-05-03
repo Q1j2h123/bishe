@@ -1,43 +1,36 @@
 package com.oj.service.impl;
 
-import static com.oj.constant.SubmissionConstant.*;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.List;
-import java.util.Map;
-import lombok.extern.slf4j.Slf4j;  // 如果使用了log
-
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oj.exception.BusinessException;
 import com.oj.mapper.*;
-import com.oj.model.dto.TestcaseResult;
 import com.oj.model.entity.*;
 import com.oj.model.request.ChoiceJudgeSubmissionRequest;
 import com.oj.model.request.ProgramSubmissionRequest;
 import com.oj.model.vo.*;
+import com.oj.service.ErrorProblemService;
+import com.oj.service.JudgeService;
 import com.oj.service.SubmissionService;
 import com.oj.service.UserService;
-import com.oj.service.JudgeService;
-import com.oj.service.ErrorProblemService;
-
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import org.springframework.util.StringUtils;
-
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+
+import static com.oj.constant.SubmissionConstant.*;
 
 @Service
 @Slf4j
@@ -68,7 +61,7 @@ public class SubmissionServiceImpl extends ServiceImpl<SubmissionMapper, Submiss
     private programProblemMapper programProblemMapper;
 
     @Resource
-    private JudgeService judgeService;
+  private   JudgeService judgeService;
 
     @Resource
     private ErrorProblemService errorProblemService;
@@ -207,7 +200,7 @@ public class SubmissionServiceImpl extends ServiceImpl<SubmissionMapper, Submiss
         programSubmission.setCode(request.getCode());
         programSubmissionMapper.insert(programSubmission);
         
-        // 在事务提交后执行评测任务
+        // 在事务提交后执行评测任务（异步）
         Long submissionId = submission.getId();
         TransactionSynchronizationManager.registerSynchronization(
             new org.springframework.transaction.support.TransactionSynchronization() {
@@ -551,22 +544,42 @@ public class SubmissionServiceImpl extends ServiceImpl<SubmissionMapper, Submiss
             detailVO.setErrorMessage(programSubmission.getErrorMessage());
             
             // 计算通过率
-            if (programSubmission.getTestcaseResults() != null) {
-                try {
-                    // 简单处理：计算通过的测试用例数
-                    String[] results = programSubmission.getTestcaseResults().split("\n");
-                    int passed = 0;
-                    for (String result : results) {
-                        if (result.trim().startsWith("通过") || result.trim().contains("PASS")) {
-                            passed++;
-                        }
+            // if (programSubmission.getTestcaseResults() != null) {
+            //     try {
+            //         // 简单处理：计算通过的测试用例数
+            //         String[] results = programSubmission.getTestcaseResults().split("\n");
+            //         int passed = 0;
+            //         for (String result : results) {
+            //             if (result.trim().startsWith("通过") || result.trim().contains("PASS")) {
+            //                 passed++;
+            //             }
+            //         }
+            //         detailVO.setPassedTestCases(passed);
+            //         detailVO.setTotalTestCases(results.length);
+            //     } catch (Exception e) {
+            //         // 解析失败则不设置值
+            //         log.error("解析测试用例结果失败: {}", e.getMessage());
+            //     }
+            // }
+            try {
+                // 解析JSON测试结果
+                ObjectMapper mapper = new ObjectMapper();
+                List<Map<String, Object>> testcases = mapper.readValue(
+                    programSubmission.getTestcaseResults(),
+                    new TypeReference<List<Map<String, Object>>>() {}
+                );
+                
+                int passed = 0;
+                for (Map<String, Object> testcase : testcases) {
+                    if (Boolean.TRUE.equals(testcase.get("passed"))) {
+                        passed++;
                     }
-                    detailVO.setPassedTestCases(passed);
-                    detailVO.setTotalTestCases(results.length);
-                } catch (Exception e) {
-                    // 解析失败则不设置值
-                    log.error("解析测试用例结果失败: {}", e.getMessage());
                 }
+                
+                detailVO.setPassedTestCases(passed);
+                detailVO.setTotalTestCases(testcases.size());
+            } catch (Exception e) {
+                log.error("解析测试用例结果失败: {}", e.getMessage());
             }
         }
         

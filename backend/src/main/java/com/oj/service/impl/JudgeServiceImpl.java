@@ -21,7 +21,7 @@ import com.oj.service.CodeExecutor;
 import com.oj.service.JudgeService;
 import com.oj.service.ErrorProblemService;
 import com.oj.service.UserProblemStatusService;
-import com.oj.util.JudgeContextHolder;
+import com.oj.utils.JudgeContextHolder;
 // import com.oj.service.SubmissionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
