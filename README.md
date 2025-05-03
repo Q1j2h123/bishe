@@ -85,6 +85,8 @@
    spring.datasource.url=jdbc:mysql://localhost:3306/oj_system?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
    spring.datasource.username=你的数据库用户名
    spring.datasource.password=你的数据库密码
+
+   执行resources下的两个sql文件
    ```
 
 3. **配置AI API**
