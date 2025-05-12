@@ -53,7 +53,7 @@ const queryParams = reactive<ProblemQueryRequest>({
   type: '',
   difficulty: '',
   jobType: '',
-  tags: [], // 将在处理时转换为单个标签
+  tags: [], // 多标签数组
   status: '',
   tag: '' // 添加单个标签字段
 })
@@ -341,6 +341,37 @@ const handleTagChange = (tag: string) => {
   });
 }
 
+// 处理多标签参数变化
+const handleTagsChange = (tags: string[]) => {
+  console.log(`已选择${tags.length}个标签: ${tags.join(', ')}`);
+  queryParams.current = 1; // 重置到第一页
+  queryParams.tags = tags; // 设置标签数组
+  
+  // 从现有查询参数复制，保留其他筛选条件
+  const newQuery: Record<string, any> = { ...route.query };
+  
+  // 更新标签相关参数
+  if (tags && tags.length > 0) {
+    newQuery.tagList = tags.join(','); // 使用tagList参数传递多标签
+  } else {
+    newQuery.tagList = undefined;
+  }
+  newQuery.tag = undefined; // 不再使用单标签
+  newQuery.current = '1'; // 重置页码
+  
+  // 确保状态筛选参数被保留
+  if (queryParams.status) {
+    newQuery.status = queryParams.status;
+    newQuery.userStatus = queryParams.status;
+  }
+  
+  // 直接触发查询
+  router.push({
+    path: '/problems',
+    query: newQuery
+  });
+}
+
 // 处理搜索框输入变化
 const handleSearchChange = () => {
   queryParams.current = 1; // 重置到第一页
@@ -382,7 +413,15 @@ const handleQuery = () => {
     // 同时设置userStatus参数
     query.userStatus = queryParams.status;
   }
-  if (queryParams.tag) query.tag = queryParams.tag;
+  
+  // 处理标签参数
+  if (queryParams.tags && queryParams.tags.length > 0) {
+    // 使用多标签
+    query.tagList = queryParams.tags.join(',');
+  } else if (queryParams.tag) {
+    // 兼容单标签
+    query.tag = queryParams.tag;
+  }
   
   query.current = '1'; // 重置页码
   
@@ -653,11 +692,21 @@ const setupRouteWatcher = () => {
           queryParams.searchText = String(newQuery.searchText);
         }
         
-        // 处理单标签
+        // 处理标签参数
         if (newQuery.tag) {
+          // 单标签参数
           queryParams.tag = String(newQuery.tag);
-        } else {
+          queryParams.tags = [String(newQuery.tag)];
+        } else if (newQuery.tagList) {
+          // 多标签参数
+          const tagArray = String(newQuery.tagList).split(',');
+          queryParams.tags = tagArray.filter(t => t.trim() !== '');
           queryParams.tag = '';
+          console.log('从路由参数更新多标签:', queryParams.tags);
+        } else {
+          // 无标签参数
+          queryParams.tag = '';
+          queryParams.tags = [];
         }
         
         // 清除任何可能的页面缓存
@@ -872,7 +921,15 @@ defineExpose({
           </el-form-item>
           
           <el-form-item label="标签">
-            <el-select v-model="queryParams.tag" placeholder="选择标签" clearable @change="handleTagChange">
+            <el-select 
+              v-model="queryParams.tags" 
+              multiple 
+              collapse-tags
+              collapse-tags-tooltip
+              placeholder="选择标签" 
+              clearable
+              @change="handleTagsChange"
+            >
               <el-option v-for="tag in allTags" :key="tag" :label="tag" :value="tag"></el-option>
             </el-select>
           </el-form-item>

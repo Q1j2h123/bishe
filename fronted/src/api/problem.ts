@@ -227,9 +227,9 @@ export const problemApi = {
         queryParams.tag = cleanTags[0];
         console.log('单个标签查询参数:', queryParams.tag);
       } else {
-        // 多个标签直接传递tags数组
-        queryParams.tags = cleanTags;
-        console.log('多标签查询参数:', queryParams.tags);
+        // 多标签使用tagList参数，以逗号分隔
+        queryParams.tagList = cleanTags.join(',');
+        console.log('多标签查询参数(tagList):', queryParams.tagList);
       }
     }
     
