@@ -22,7 +22,7 @@ public class QuestionBankProblem {
     
     private LocalDateTime updateTime;
     
-    @TableLogic
+//    @TableLogic
     private Integer isDelete;
 
 

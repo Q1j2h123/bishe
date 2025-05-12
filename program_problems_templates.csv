@@ -1,0 +1,41 @@
+id,javaTemplate,pythonTemplate,cppTemplate,cTemplate
+1,"public int[] twoSum(int[] nums, int target) {
+    // 请在此实现你的代码
+    return new int[]{0, 0};
+}","def twoSum(nums, target):
+    # 请在此实现你的代码
+    pass","vector<int> twoSum(vector<int>& nums, int target) {
+    // 请在此实现你的代码
+    return {0, 0};
+}","int* twoSum(int* nums, int numsSize, int target, int* returnSize) {
+    // 请在此实现你的代码
+    *returnSize = 2;
+    int* result = (int*)malloc(sizeof(int) * 2);
+    result[0] = 0;
+    result[1] = 0;
+    return result;
+}"
+2,"public int gcd(int a, int b) {
+    // 请在此实现你的代码
+    return 0;
+}","def gcd(a, b):
+    # 请在此实现你的代码
+    pass","int gcd(int a, int b) {
+    // 请在此实现你的代码
+    return 0;
+}","int gcd(int a, int b) {
+    // 请在此实现你的代码
+    return 0;
+}"
+3,"public boolean isPalindrome(String s) {
+    // 请在此实现你的代码
+    return false;
+}","def isPalindrome(s):
+    # 请在此实现你的代码
+    pass","bool isPalindrome(string s) {
+    // 请在此实现你的代码
+    return false;
+}","bool isPalindrome(char* s) {
+    // 请在此实现你的代码
+    return false;
+}" 

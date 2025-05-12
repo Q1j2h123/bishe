@@ -14,7 +14,7 @@ import java.util.Date;
 @Component
 public class JwtUtils {
 
-    @Value("${jwt.expiration}")
+    @Value("${jwt.expiration:86400000}")
     private Long expiration;
 
     private Key key;

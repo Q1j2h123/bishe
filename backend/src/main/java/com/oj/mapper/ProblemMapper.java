@@ -13,7 +13,7 @@ public interface ProblemMapper extends BaseMapper<Problem> {
      */
     @Update("UPDATE problem SET submission_count = submission_count + 1, " +
             "accept_rate = CONCAT(ROUND((" +
-            "SELECT COUNT(*) FROM programming_submission ps " +
+            "SELECT COUNT(*) FROM program_submission ps " +
             "JOIN submission s ON ps.submission_id = s.id " +
             "WHERE s.problem_id = #{problemId} AND ps.status = 'ACCEPTED'" +
             ") * 100.0 / (submission_count + 1), 1), '%') " +

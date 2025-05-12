@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.time.LocalDateTime;
-import java.util.Date;
+
 
 @Data
 @TableName("problem")
@@ -88,10 +88,10 @@ public class Problem {
     @TableField("updateTime")
     private LocalDateTime updateTime;
 
-    /**
-     * 每日一题日期（格式：yyyy-MM-dd）
-     */
-    private String dailyDate;
+//    /**
+//     * 每日一题日期（格式：yyyy-MM-dd）
+//     */
+//    private String dailyDate;
 }
  
 

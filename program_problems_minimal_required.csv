@@ -1,0 +1,4 @@
+title,content,type,difficulty
+TwoSum,"Given an array of integers and a target, find indices of two numbers that add up to the target.",PROGRAM,EASY
+GCD,"Implement a function to calculate the greatest common divisor of two positive integers.",PROGRAM,EASY
+Palindrome,"Implement a function to check if a given string is a palindrome.",PROGRAM,EASY 

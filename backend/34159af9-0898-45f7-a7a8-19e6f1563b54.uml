@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>DATABASE</ID>
+  <OriginalElement>34159af9-0898-45f7-a7a8-19e6f1563b54</OriginalElement>
+  <nodes>
+    <node x="482.36736429598477" y="451.65042679065175">34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.user</node>
+    <node x="-77.8487316937377" y="482.6927865186382">34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.submission</node>
+    <node x="-79.2990383095837" y="937.3267894223184">34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.user_problem_status</node>
+    <node x="388.799709903438" y="249.14755750800146">34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.choice_problem</node>
+    <node x="-4.897604615565172" y="257.8860687157137">34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.judge_problem</node>
+    <node x="-563.3863878048344" y="680.4220764965751">34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.program_submission</node>
+    <node x="443.2184180453792" y="821.0326554856349">34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.choice_judge_submission</node>
+    <node x="867.6265637053567" y="459.33590662458346">34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.error_problem</node>
+    <node x="-53.65448931939878" y="-199.23360547216646">34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.problem</node>
+    <node x="861.5316792995832" y="82.52489559617356">34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.program_problem</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.program_problem" target="34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.problem" relationship="REFERENCES">
+      <point x="-209.99967929958314" y="-5.3768955961735685" />
+      <point x="-22.397999999999996" y="231.648" />
+      <point x="-222.24351068060122" y="177.49960547216645" />
+    </edge>
+    <edge source="34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.program_submission" target="34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.submission" relationship="REFERENCES">
+      <point x="212.00038780483436" y="-7.649657504771312E-5" />
+      <point x="-109.0" y="777.422" />
+      <point x="-109.0" y="602.693" />
+      <point x="-250.00026830626229" y="2.134813618113185E-4" />
+    </edge>
+    <edge source="34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.judge_problem" target="34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.problem" relationship="REFERENCES">
+      <point x="-3.953844348316693E-4" y="50.99993128428633" />
+      <point x="153.602" y="398.0" />
+      <point x="-22.397999999999996" y="398.0" />
+      <point x="-222.24351068060122" y="177.49960547216645" />
+    </edge>
+    <edge source="34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.choice_judge_submission" target="34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.submission" relationship="REFERENCES">
+      <point x="-172.00041804537923" y="3.445143651106264E-4" />
+      <point x="-109.0" y="860.533" />
+      <point x="-109.0" y="602.693" />
+      <point x="-250.00026830626229" y="2.134813618113185E-4" />
+    </edge>
+    <edge source="34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.choice_problem" target="34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.problem" relationship="REFERENCES">
+      <point x="2.900965620256102E-4" y="62.50044249199857" />
+      <point x="588.8" y="398.0" />
+      <point x="-22.397999999999996" y="398.0" />
+      <point x="-222.24351068060122" y="177.49960547216645" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic" zoom="0.481508875739645" showDependencies="false" x="369.0" y="476.0" />
+  <SelectedNodes>
+    <node>34159af9-0898-45f7-a7a8-19e6f1563b54.TABLE:oj.program_submission</node>
+  </SelectedNodes>
+  <Categories>
+    <Category>Columns</Category>
+    <Category>Comments</Category>
+    <Category>Key columns</Category>
+  </Categories>
+</Diagram>
+

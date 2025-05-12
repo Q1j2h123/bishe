@@ -4,8 +4,10 @@ import com.oj.common.ErrorCode;
 import com.oj.common.UserContext;
 import com.oj.exception.BusinessException;
 import com.oj.model.entity.User;
+import com.oj.service.TokenBlacklistService;
 import com.oj.service.UserService;
 import com.oj.utils.JwtUtils;
+import com.oj.constant.UserConstant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -27,6 +29,11 @@ public class LoginInterceptor implements HandlerInterceptor {
 
     @Resource
     private UserService userService;
+    
+    @Resource
+    private TokenBlacklistService tokenBlacklistService;
+    
+
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -50,6 +57,13 @@ public class LoginInterceptor implements HandlerInterceptor {
             String token = header.substring(TOKEN_PREFIX.length()).trim();
             if (!StringUtils.hasText(token)) {
                 log.error("认证失败: 令牌为空");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return false;
+            }
+            
+            // 检查令牌是否在黑名单中
+            if (tokenBlacklistService.isBlacklisted(token)) {
+                log.error("认证失败: 令牌已被注销");
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 return false;
             }
@@ -77,8 +91,16 @@ public class LoginInterceptor implements HandlerInterceptor {
                 return false;
             }
 
+            // 检查用户是否被封禁
+            if (UserConstant.BANNED_ROLE.equals(user.getUserRole())) {
+                log.error("认证失败: 用户已被封禁, 用户ID: {}", userId);
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN); // 使用403表示被禁止访问
+                return false;
+            }
+
             // 设置用户上下文
             UserContext.setUser(user);
+            log.info("用户上下文设置成功，用户ID: {}, 用户名: {}", user.getId(), user.getUserName());
             return true;
         } catch (Exception e) {
             log.error("认证过程发生错误", e);
@@ -91,5 +113,6 @@ public class LoginInterceptor implements HandlerInterceptor {
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
         // 清理用户上下文
         UserContext.clear();
+
     }
 } 

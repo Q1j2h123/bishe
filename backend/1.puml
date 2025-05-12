@@ -1,0 +1,93 @@
+@startuml 在线判题系统用例图
+
+skinparam actorStyle awesome
+skinparam usecaseArrowColor #0066CC
+skinparam usecaseBorderColor #3399FF
+skinparam usecaseBackgroundColor #CCEBFF
+
+left to right direction
+
+actor "普通用户" as User #99CCFF
+actor "管理员" as Admin #FF9999
+
+rectangle "在线判题系统" {
+  ' 用户基础功能
+  usecase "注册和登录" as Login #99CCFF
+  usecase "找回密码" as RecoverPassword #99CCFF
+  usecase "第三方账号登录" as ThirdPartyLogin #99CCFF
+
+  ' 个人中心相关
+  usecase "完善个人中心" as PersonalCenter #99CCFF
+  usecase "更新个人信息" as UpdateInfo #99CCFF
+  usecase "修改密码" as ChangePassword #99CCFF
+  usecase "查看学习统计" as LearningStats #99CCFF
+
+  ' 题目浏览相关
+  usecase "浏览题目列表" as BrowseProblems #99CCFF
+  usecase "按难度筛选题目" as FilterByDifficulty #99CCFF
+  usecase "按标签筛选题目" as FilterByTag #99CCFF
+  usecase "搜索题目" as SearchProblems #99CCFF
+
+  ' 题目解答相关
+  usecase "解答题目" as SolveProblem #99CCFF
+  usecase "查看题目详情" as ViewProblemDetail #99CCFF
+  usecase "AI代码分析" as AICodeAnalysis #99CCFF
+  usecase "运行测试用例" as RunTestCases #99CCFF
+  usecase "代码草稿保存" as SaveDraft #99CCFF
+
+  ' 提交历史相关
+  usecase "查看提交历史" as ViewSubmissions #99CCFF
+  usecase "查看详细评测结果" as ViewTestResults #99CCFF
+  usecase "代码对比" as CompareCode #99CCFF
+
+  ' 学习辅助功能
+  usecase "错题集管理" as WrongProblems #99CCFF
+  usecase "学习路径推荐" as LearningPath #99CCFF
+
+  ' 管理员功能
+  usecase "管理题目集" as ManageProblems #FF9999
+  usecase "添加题目" as AddProblem #FF9999
+  usecase "编辑题目" as EditProblem #FF9999
+  usecase "删除题目" as DeleteProblem #FF9999
+  usecase "管理用户" as ManageUsers #FF9999
+
+  ' 关系定义
+  ' includes关系
+  Login ..> RecoverPassword : <<include>>
+  Login ..> ThirdPartyLogin : <<include>>
+
+  PersonalCenter ..> UpdateInfo : <<include>>
+  PersonalCenter ..> ChangePassword : <<include>>
+  PersonalCenter ..> LearningStats : <<include>>
+
+  ManageProblems ..> AddProblem : <<include>>
+  ManageProblems ..> EditProblem : <<include>>
+  ManageProblems ..> DeleteProblem : <<include>>
+
+  ' extends关系
+  BrowseProblems <.. FilterByDifficulty : <<extend>>
+  BrowseProblems <.. FilterByTag : <<extend>>
+  BrowseProblems <.. SearchProblems : <<extend>>
+
+  SolveProblem <.. AICodeAnalysis : <<extend>>
+  SolveProblem <.. RunTestCases : <<extend>>
+  SolveProblem <.. SaveDraft : <<extend>>
+
+  ViewSubmissions <.. ViewTestResults : <<extend>>
+  ViewSubmissions <.. CompareCode : <<extend>>
+}
+
+' 关联关系
+User -- Login
+User -- PersonalCenter
+User -- BrowseProblems
+User -- SolveProblem
+User -- ViewSubmissions
+User -- WrongProblems
+User -- LearningPath
+
+Admin -- ManageProblems
+Admin -- ManageUsers
+Admin --|> User
+
+@enduml

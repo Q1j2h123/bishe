@@ -1,0 +1,194 @@
+@startuml "面试刷题平台ER图-完整版"
+
+' 定义实体
+entity "User" as User {
+  *id : number <<PK>>
+  --
+  userAccount : string
+  userPassword : string
+  userName : string
+  userAvatar : string
+  userProfile : string
+  userRole : string
+  createTime : datetime
+  updateTime : datetime
+  isDelete : boolean
+}
+
+entity "AdminUser" as AdminUser {
+  *id : number <<PK,FK>>
+  --
+  权限相关属性
+}
+
+entity "NormalUser" as NormalUser {
+  *id : number <<PK,FK>>
+  --
+  普通用户相关属性
+}
+
+entity "Problem" as Problem {
+  *id : number <<PK>>
+  --
+  title : string
+  content : string
+  type : string
+  jobType : string
+  tags : string
+  difficulty : string
+  acceptRate : float
+  submissionCount : integer
+  userId : number <<FK>>
+  createTime : datetime
+  updateTime : datetime
+  isDelete : boolean
+  status : string
+}
+
+entity "ProgramProblem" as ProgramProblem {
+  *id : number <<PK,FK>>
+  --
+  functionName : string
+  paramTypes : string
+  returnType : string
+  testCases : string
+  templates : string
+  timeLimit : integer
+  memoryLimit : integer
+  standardSolution : string
+}
+
+entity "ChoiceProblem" as ChoiceProblem {
+  *id : number <<PK,FK>>
+  --
+  options : string
+  answer : string
+  analysis : string
+}
+
+entity "JudgeProblem" as JudgeProblem {
+  *id : number <<PK,FK>>
+  --
+  answer : boolean
+  analysis : string
+}
+
+entity "Submission" as Submission {
+  *id : number <<PK>>
+  --
+  userId : number <<FK>>
+  problemId : number <<FK>>
+  type : string
+  status : string
+  submissionTime : datetime
+  createTime : datetime
+  updateTime : datetime
+  isDelete : boolean
+}
+
+entity "ProgramSubmission" as ProgramSubmission {
+  *submissionId : number <<PK,FK>>
+  --
+  language : string
+  code : string
+  executeTime : integer
+  memoryUsage : integer
+  testcaseResults : string
+  errorMessage : string
+}
+
+entity "ChoiceJudgeSubmission" as ChoiceJudgeSubmission {
+  *submissionId : number <<PK,FK>>
+  --
+  answer : string
+}
+
+entity "UserProblemStatus" as UserProblemStatus {
+  *id : number <<PK>>
+  --
+  userId : number <<FK>>
+  problemId : number <<FK>>
+  status : string
+  lastSubmitTime : datetime
+  createTime : datetime
+  updateTime : datetime
+}
+
+entity "ErrorProblem" as ErrorProblem {
+  *id : number <<PK>>
+  --
+  userId : number <<FK>>
+  problemId : number <<FK>>
+  lastErrorTime : datetime
+  status : string
+  createTime : datetime
+  updateTime : datetime
+  isDelete : boolean
+}
+
+
+
+' 标注多对多关系
+note "多对多关系(M:N)\n通过UserProblemStatus表实现" as N1
+note "多对多关系(M:N)\n通过ErrorProblem表实现" as N2
+note "只有管理员用户\n可以创建题目" as N4
+
+' 用户角色关系(ISA关系)
+User "1" ||--o| "0..1" AdminUser : UserType
+User "1" ||--o| "0..1" NormalUser : UserType
+
+' 管理员创建题目关系
+AdminUser "1" ||--o{ "N" Problem : Creates
+AdminUser .. N4
+Problem .. N4
+
+' 题目类型关系(ISA关系)
+Problem "1" ||--o| "0..1" ProgramProblem : ProblemType
+Problem "1" ||--o| "0..1" ChoiceProblem : ProblemType
+Problem "1" ||--o| "0..1" JudgeProblem : ProblemType
+
+' 用户提交关系
+User "1" ||--o{ "N" Submission : Submits
+
+' 题目被提交关系
+Problem "1" ||--o{ "N" Submission : IsSubmittedFor
+
+' 提交类型关系(ISA关系)
+Submission "1" ||--o| "0..1" ProgramSubmission : SubmissionType
+Submission "1" ||--o| "0..1" ChoiceJudgeSubmission : SubmissionType
+
+' 用户题目状态关系 - 多对多
+User "1" ||--o{ "N" UserProblemStatus : HasStatus
+Problem "1" ||--o{ "N" UserProblemStatus : HasStatus
+UserProblemStatus .. N1
+
+' 错题本关系 - 多对多
+User "1" ||--o{ "N" ErrorProblem : CollectsError
+Problem "1" ||--o{ "N" ErrorProblem : CollectsError
+ErrorProblem .. N2
+
+' 详细说明
+note bottom of User
+  用户分为管理员和普通用户：
+  - 通过userRole属性区分角色
+  - 只有管理员可以创建题目
+  - 所有用户都可以做题、提交代码
+end note
+
+note bottom of UserProblemStatus
+  中间关联表：
+  - 记录用户解题状态
+  - 通过userId和problemId外键关联
+  - 记录额外属性如状态、最后提交时间等
+end note
+
+note bottom of ErrorProblem
+  中间关联表：
+  - 实现用户错题本功能
+  - 记录用户的错误题目
+  - 包含错误时间、状态等属性
+end note
+
+
+
+@enduml

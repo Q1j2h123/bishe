@@ -1,3 +1,6 @@
+create databse `oj`;
+use `oj`;
+
 CREATE TABLE `user` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
   `userAccount` varchar(256) NOT NULL COMMENT '账号',

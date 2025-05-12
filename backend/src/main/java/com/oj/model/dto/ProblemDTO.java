@@ -76,5 +76,10 @@ public class ProblemDTO implements Serializable {
      */
     private String creatorName;
 
+    /**
+     * 状态（UNSOLVED-未解决，ATTEMPTED-尝试过，SOLVED-已解决）
+     */
+    private String status;
+
     private static final long serialVersionUID = 1L;
 } 

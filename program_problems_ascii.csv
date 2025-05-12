@@ -1,0 +1,4 @@
+title,content,functionName,paramTypes,returnType,difficulty,type,tags
+TwoSum,"Given an array of integers and a target, find indices of two numbers that add up to the target.",twoSum,int[]|int,int[],EASY,ALGORITHM,"array,hashtable"
+GCD,"Implement a function to calculate the greatest common divisor of two positive integers.",gcd,int|int,int,EASY,MATH,"math,algorithm"
+Palindrome,"Implement a function to check if a given string is a palindrome.",isPalindrome,String,boolean,EASY,STRING,"string,twopointers" 

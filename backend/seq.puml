@@ -1,0 +1,42 @@
+@startuml
+actor 用户
+participant "前端" as Frontend
+participant "控制器" as Controller
+participant "提交服务" as SubmissionSvc
+participant "判题服务" as JudgeSvc
+participant "数据库" as DB
+
+用户 -> Frontend : 提交代码
+activate Frontend
+
+Frontend -> Controller : 发送提交请求
+activate Controller
+
+Controller -> SubmissionSvc : 处理提交
+activate SubmissionSvc
+
+SubmissionSvc -> DB : 保存提交记录(更新题目状态为"PENDING")
+SubmissionSvc -> JudgeSvc : 启动判题(更新提交状态为"JUDGING")
+activate JudgeSvc
+
+JudgeSvc -> DB : 获取题目和测试用例
+
+note over JudgeSvc
+  判题处理过程
+  (包含本地或AI判题)
+end note
+
+JudgeSvc -> DB : 更新提交状态
+JudgeSvc --> SubmissionSvc : 返回判题结果
+deactivate JudgeSvc
+
+SubmissionSvc --> Controller : 返回处理结果
+deactivate SubmissionSvc
+
+Controller --> Frontend : 返回响应
+deactivate Controller
+
+Frontend --> 用户 : 显示判题结果
+deactivate Frontend
+
+@enduml

@@ -10,10 +10,6 @@ import com.oj.model.vo.ProblemVO;
 import java.util.List;
 
 public interface ProblemService extends IService<Problem> {
-    /**
-     * 创建题目
-//     */
-//    Long addProblem(ProblemAddRequest request, Long userId);
 
     /**
      * 删除题目
@@ -29,13 +25,8 @@ public interface ProblemService extends IService<Problem> {
      */
     ProblemVO getProblemById(Long id, Long userId);
 
-    /**
-     * 分页查询题目列表
-     *
-     * @param request 查询请求
-     * @return 分页结果
-     */
-    Page<ProblemVO> listProblem(ProblemQueryRequest request);
+
+//    ProblemVO problemToVO(Problem problem, Long userId);
 
     /**
      * 获取题目详细信息（包括具体题目内容）
@@ -44,19 +35,9 @@ public interface ProblemService extends IService<Problem> {
 
     Problem validateProblem(Long id, Long userId);
 
-    /**
-     * 校验题目是否存在且是否有权限
-     */
-//    Problem validateProblem(Long id, Long userId);
 
-    /**
-     * Problem 转 VO
-     *
-     * @param problem 题目实体
-     * @param userId 当前用户ID
-     * @return 题目VO
-     */
-    ProblemVO problemToVO(Problem problem, Long userId);
+
+
 
     /**
      * 获取题目的提交统计信息
@@ -125,7 +106,7 @@ public interface ProblemService extends IService<Problem> {
      * @param userId 用户id
      * @return 题目id
      */
-    Long addProgrammingProblem(ProgrammingProblemAddRequest request, Long userId);
+    Long addProgramProblem(ProgramProblemAddRequest request, Long userId);
 
     /**
      * 更新选择题
@@ -140,19 +121,60 @@ public interface ProblemService extends IService<Problem> {
     /**
      * 更新编程题
      */
-    boolean updateProgrammingProblem(ProgrammingProblemUpdateRequest request, Long userId);
+    boolean updateProgramProblem(ProgramProblemUpdateRequest request, Long userId);
 
-//    /**
-//     * 获取随机一题
-//     * @param userId 用户ID
-//     * @return 随机题目
-//     */
-//    ProblemVO getRandomProblem(Long userId);
+    /**
+     * 分页获取题目列表
+     * @param problemQueryRequest 查询条件
+     * @param userId 当前用户ID
+     * @return 分页结果
+     */
+    Page<ProblemVO> listProblemByPage(ProblemQueryRequest problemQueryRequest, Long userId);
 
-//    /**
-//     * 获取每日一题
-//     * @param userId 用户ID
-//     * @return 每日题目
-//     */
-//    ProblemVO getDailyProblem(Long userId);
+    /**
+     * 更新题目状态
+     * @param problemId 题目ID
+     * @param userId 用户ID
+     * @param status 新状态
+     * @return 是否成功
+     */
+    boolean updateProblemStatus(Long problemId, Long userId, String status);
+
+    /**
+     * 获取随机一题
+     * @param userId 用户ID
+     * @return 随机题目
+     */
+    ProblemVO getRandomProblem(Long userId);
+
+    /**
+     * 获取每日一题
+     * @param userId 用户ID
+     * @return 每日题目
+     */
+    ProblemVO getDailyProblem(Long userId);
+
+    /**
+     * 高级搜索题目
+     * @param problemSearchRequest 高级搜索请求
+     * @param userId 当前用户ID
+     * @return 分页结果
+     */
+    Page<ProblemVO> searchProblemAdvanced(ProblemSearchRequest problemSearchRequest, Long userId);
+
+    /**
+     * 获取所有标签
+     */
+    List<String> getAllTags();
+
+    /**
+     * 获取所有岗位类型
+     * @return 岗位类型列表
+     */
+    List<String> getAllJobTypes();
+
+    /**
+     * 统计题目总数
+     */
+    Integer countProblems();
 }

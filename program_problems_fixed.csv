@@ -1,0 +1,126 @@
+题目标题,题目内容,函数名,参数类型,返回值类型,测试用例,Java代码模板,Python代码模板,C++代码模板,C代码模板,Java标准答案,Python标准答案,C++标准答案,C标准答案,时间限制,内存限制,难度,函数类型,标签
+两数之和,"给定一个整数数组和一个目标值，找出数组中和为目标值的两个数的索引。
+
+你可以假设每种输入只会对应一个答案。但是，数组中同一个元素不能使用两遍。
+
+输入：一个整数数组nums和一个目标值target
+输出：两个整数索引，使得nums[i] + nums[j] = target且i != j",twoSum,int[]|int,int[],"{
+  ""name"": ""示例1"",
+  ""input"": ""[2,7,11,15], 9"",
+  ""output"": ""[0,1]"",
+  ""explanation"": ""nums[0] + nums[1] = 2 + 7 = 9""
+},{
+  ""name"": ""示例2"",
+  ""input"": ""[3,2,4], 6"",
+  ""output"": ""[1,2]""
+},{
+  ""name"": ""示例3"",
+  ""input"": ""[3,3], 6"",
+  ""output"": ""[0,1]""
+}","public int[] twoSum(int[] nums, int target) {
+    // 请在此实现你的代码
+    return new int[]{0, 0};
+}","def twoSum(nums, target):
+    # 请在此实现你的代码
+    pass","vector<int> twoSum(vector<int>& nums, int target) {
+    // 请在此实现你的代码
+    return {0, 0};
+}","int* twoSum(int* nums, int numsSize, int target, int* returnSize) {
+    // 请在此实现你的代码
+    *returnSize = 2;
+    int* result = (int*)malloc(sizeof(int) * 2);
+    result[0] = 0;
+    result[1] = 0;
+    return result;
+}","public int[] twoSum(int[] nums, int target) {
+    Map<Integer, Integer> map = new HashMap<>();
+    for (int i = 0; i < nums.length; i++) {
+        int complement = target - nums[i];
+        if (map.containsKey(complement)) {
+            return new int[] { map.get(complement), i };
+        }
+        map.put(nums[i], i);
+    }
+    return new int[0]; // 如果没有解，返回空数组
+}","def twoSum(nums, target):
+    hash_map = {}
+    for i, num in enumerate(nums):
+        complement = target - num
+        if complement in hash_map:
+            return [hash_map[complement], i]
+        hash_map[num] = i
+    return []  # 如果没有解，返回空列表","vector<int> twoSum(vector<int>& nums, int target) {
+    unordered_map<int, int> hash_map;
+    for (int i = 0; i < nums.size(); i++) {
+        int complement = target - nums[i];
+        if (hash_map.count(complement)) {
+            return {hash_map[complement], i};
+        }
+        hash_map[nums[i]] = i;
+    }
+    return {};  // 如果没有解，返回空数组
+}","int* twoSum(int* nums, int numsSize, int target, int* returnSize) {
+    *returnSize = 2;
+    int* result = (int*)malloc(sizeof(int) * 2);
+    
+    for (int i = 0; i < numsSize; i++) {
+        for (int j = i + 1; j < numsSize; j++) {
+            if (nums[i] + nums[j] == target) {
+                result[0] = i;
+                result[1] = j;
+                return result;
+            }
+        }
+    }
+    
+    result[0] = -1;
+    result[1] = -1;
+    return result;
+}",1000,128,简单,ALGORITHM,"数组,哈希表"
+最大公约数,"请实现一个函数，计算两个正整数的最大公约数。
+
+最大公约数是能够被两个或多个整数整除的最大正整数。例如，8和12的最大公约数是4。
+
+输入：两个正整数
+输出：它们的最大公约数",gcd,int|int,int,"{
+  ""name"": ""示例1"",
+  ""input"": ""12 8"",
+  ""output"": ""4""
+},{
+  ""name"": ""示例2"",
+  ""input"": ""54 24"",
+  ""output"": ""6""
+},{
+  ""name"": ""示例3"",
+  ""input"": ""13 7"",
+  ""output"": ""1""
+}","public int gcd(int a, int b) {
+    // 请在此实现你的代码
+    return 0;
+}","def gcd(a, b):
+    # 请在此实现你的代码
+    pass","int gcd(int a, int b) {
+    // 请在此实现你的代码
+    return 0;
+}","int gcd(int a, int b) {
+    // 请在此实现你的代码
+    return 0;
+}","public int gcd(int a, int b) {
+    if (b == 0) {
+        return a;
+    }
+    return gcd(b, a % b);
+}","def gcd(a, b):
+    if b == 0:
+        return a
+    return gcd(b, a % b)","int gcd(int a, int b) {
+    if (b == 0) {
+        return a;
+    }
+    return gcd(b, a % b);
+}","int gcd(int a, int b) {
+    if (b == 0) {
+        return a;
+    }
+    return gcd(b, a % b);
+}",1000,256,简单,MATH,"数学,欧几里得算法" 

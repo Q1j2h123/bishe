@@ -1,1 +1,6 @@
-E:\bishe\fronted\backend\src\test\java\com\oj\controller\UserControllerTest.java
+E:\bishe\oj-project\backend\src\test\java\com\oj\config\TestConfig.java
+E:\bishe\oj-project\backend\src\test\java\com\oj\service\ProblemServiceTest.java
+E:\bishe\oj-project\backend\src\test\java\com\oj\service\impl\PerformanceTestServiceImpl.java
+E:\bishe\oj-project\backend\src\test\java\com\oj\service\impl\DeepseekServiceTest.java
+E:\bishe\oj-project\backend\src\test\java\com\oj\service\ErrorProblemServiceTest.java
+E:\bishe\oj-project\backend\src\test\java\com\oj\service\impl\AIServiceTest.java
